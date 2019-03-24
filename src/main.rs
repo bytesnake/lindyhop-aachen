@@ -4,13 +4,19 @@ mod counter;
 
 #[macro_use]
 extern crate rocket;
-use counter::Counter;
 use rocket::State;
 
+use maud::{html, Markup};
+
+use counter::Counter;
+
 #[get("/")]
-fn index(counter: State<Counter>) -> String {
+fn index(counter: State<Counter>) -> Markup {
     let count = counter.increment();
-    format!("Visitor number: {}", count)
+    html! {
+        h1 { "Visitor Counter" }
+        p { "You are visitor number " (count) "."}
+    }
 }
 
 fn main() {
