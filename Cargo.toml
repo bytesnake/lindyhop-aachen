@@ -5,3 +5,4 @@ authors = ["Y0hy0h <Y0hy0h@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+rocket = "0.4.0"
