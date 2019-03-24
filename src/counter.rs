@@ -26,9 +26,10 @@ impl Counter {
         self.0.load(Ordering::Relaxed)
     }
 
-    pub fn increment(&self) {
+    pub fn increment(&self) -> usize {
         let new_count = fetch_plus(&self.0, 1, Ordering::Relaxed);
         fs::write(FILE_PATH, format!("{}", new_count)).expect("File was not writable.");
+        new_count
     }
 }
 

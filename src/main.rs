@@ -9,8 +9,7 @@ use rocket::State;
 
 #[get("/")]
 fn index(counter: State<Counter>) -> String {
-    let count = counter.get_count();
-    counter.increment();
+    let count = counter.increment();
     format!("Visitor number: {}", count)
 }
 
