@@ -18,9 +18,15 @@ fn index(events: State<Events>) -> Markup {
         h1 { "Lindy Hop Aachen" }
         ol {
             @for event in &events.0 {
-                li { (event.name) " - " (event.teaser) ": " (event.occurrences.get(0).unwrap().location.name) }
+                li { ( render_event(event) ) }
             }
         }
+    }
+}
+
+fn render_event(event: &Event) -> Markup {
+    html! {
+        (event.name) " - " (event.teaser) ": " (event.occurrences.get(0).unwrap().location.name)
     }
 }
 
@@ -40,7 +46,7 @@ fn main() {
         occurrences: vec![Occurrence {
             start: Local.ymd(2019, 4, 1).and_hms(20, 30, 00),
             duration: chrono::Duration::minutes(90),
-            location: &chico,
+            location: &CHICO,
         }],
     }, Event {
         name: "Anfängerkurs",
@@ -49,7 +55,7 @@ fn main() {
         occurrences: vec![Occurrence {
             start: Local.ymd(2019, 4, 1).and_hms(19, 45, 00),
             duration: chrono::Duration::minutes(45),
-            location: &chico,
+            location: &CHICO,
         }]
     }])).mount("/", routes![index]).launch();
 }
