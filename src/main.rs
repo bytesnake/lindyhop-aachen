@@ -53,7 +53,10 @@ fn main() {
                 teaser: "Einfach tanzen.",
                 description: "Lindy Hop tanzen in einer Bar.",
                 occurrences: vec![Occurrence {
-                    start: Local.ymd(2019, 4, 1).and_hms(20, 30, 00).with_timezone(&Utc),
+                    start: Local
+                        .ymd(2019, 4, 1)
+                        .and_hms(20, 30, 00)
+                        .with_timezone(&Utc),
                     duration: 90,
                     location: &CHICO,
                 }],
@@ -63,7 +66,10 @@ fn main() {
                 teaser: "Hereinschnuppern.",
                 description: "Ein Einführung für diejenigen, die noch nie Lindy Hop getanzt haben.",
                 occurrences: vec![Occurrence {
-                    start: Local.ymd(2019, 4, 1).and_hms(19, 45, 00).with_timezone(&Utc),
+                    start: Local
+                        .ymd(2019, 4, 1)
+                        .and_hms(19, 45, 00)
+                        .with_timezone(&Utc),
                     duration: 45,
                     location: &CHICO,
                 }],
@@ -73,6 +79,6 @@ fn main() {
             let path = concat!(env!("CARGO_MANIFEST_DIR"), "/admin/dist");
             StaticFiles::from(path)
         })
-        .mount("/", routes![index])
+        .mount("/", routes![index, read_events])
         .launch();
 }
