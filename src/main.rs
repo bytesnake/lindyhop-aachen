@@ -26,7 +26,7 @@ fn index(events: State<Events>) -> Markup {
 
 struct Events<'a>(Vec<Event<'a>>);
 
-const chico: Location = Location {
+const CHICO: Location = Location {
                 name: "Chico Mendès",
                 address: "Aachen",
             };
