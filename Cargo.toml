@@ -8,4 +8,5 @@ edition = "2018"
 rocket = "0.4.0"
 rocket_contrib = "0.4.0"
 maud = { version = "0.20.0", features = ["rocket"] }
-chrono = "0.4"
+serde = { version = "1.0.89", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }

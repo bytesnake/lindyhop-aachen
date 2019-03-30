@@ -6,6 +6,7 @@ mod events;
 extern crate rocket;
 use rocket::State;
 
+use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
 use events::{Event, Location, Occurrence};
@@ -30,6 +31,11 @@ fn render_event(event: &Event) -> Markup {
     html! {
         (event.name) " - " (event.teaser) ": " (event.occurrences.get(0).unwrap().location.name)
     }
+}
+
+#[get("/api/events")]
+fn read_events<'a>(events: State<'a, Events>) -> Json<&'a Vec<Event<'a>>> {
+    Json(&events.inner().0)
 }
 
 struct Events<'a>(Vec<Event<'a>>);
