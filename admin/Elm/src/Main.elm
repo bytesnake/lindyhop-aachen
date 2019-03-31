@@ -2,15 +2,18 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
+import Date exposing (Date)
+import Events exposing (EventsTree, OccurrenceList)
 import Events.Event as Event exposing (Event, FullEvent, fullEventDecoder)
 import Events.Location as Location exposing (Location)
-import Events.Occurrence as Occurrence exposing (Occurrence)
+import Events.Occurrence as Occurrence exposing (Occurrence, OccurrenceTime)
 import Html exposing (Html, div, h1, h2, li, ol, p, text)
 import Http
 import Json.Decode as Decode
 import Task
 import Time
 import Url exposing (Url)
+import Utils.SimpleTime as SimpleTime exposing (SimpleTime)
 
 
 
@@ -42,7 +45,7 @@ type AppModel
 
 type alias Model =
     { timezone : Time.Zone
-    , events : List ( Occurrence, Event )
+    , events : OccurrenceList
     }
 
 
@@ -123,7 +126,8 @@ load maybeZone maybeEvents model =
         loaded zone events =
             Loaded
                 { timezone = zone
-                , events = sortByOccurrences events
+                , events =
+                    Events.occurrenceListFromEventsTree events
                 }
     in
     case model of
@@ -162,21 +166,6 @@ load maybeZone maybeEvents model =
 
         Loaded _ ->
             model
-
-
-sortByOccurrences : List FullEvent -> List ( Occurrence, Event )
-sortByOccurrences fullEvents =
-    List.concatMap
-        (\fullEvent ->
-            let
-                event =
-                    Event.event fullEvent
-            in
-            List.map
-                (\occurrence -> ( occurrence, event ))
-                (Event.occurrences fullEvent)
-        )
-        fullEvents
 
 
 type Msg
@@ -238,85 +227,74 @@ viewError error =
 viewLoaded : Model -> List (Html Msg)
 viewLoaded model =
     [ h1 [] [ text "Admin" ]
-    , ol [] (List.map (\( occurrence, event ) -> li [] [ viewOccurrence model.timezone occurrence event ]) model.events)
+    , ol []
+        (List.map
+            (\( date, occurrences ) ->
+                li []
+                    [ text <| stringFromDate date
+                    , ol []
+                        (List.map
+                            (\( occurrence, event ) ->
+                                li [] [ viewOccurrence model.timezone occurrence event ]
+                            )
+                            occurrences
+                        )
+                    ]
+            )
+            (Events.dateTreeFromOccurrenceList model.timezone model.events)
+        )
     ]
 
 
-viewOccurrence : Time.Zone -> Occurrence -> Event -> Html Msg
+viewOccurrence : Time.Zone -> OccurrenceTime -> Event -> Html Msg
 viewOccurrence zone occurrence event =
     let
-        location =
-            Occurrence.location occurrence
+        startTime =
+            stringFromSimpleTime occurrence.startTime
 
         description =
-            (stringFromDate zone <| Occurrence.start occurrence)
-                ++ " - "
-                ++ Location.name location
+            startTime ++ " - " ++ occurrence.location.name
     in
     div []
-        [ h2 [] [ text (Event.name event) ]
+        [ p [] [ text event.name ]
         , p [] [ text description ]
         ]
 
 
-stringFromDate : Time.Zone -> Time.Posix -> String
-stringFromDate zone time =
+
+-- View Helpers
+
+
+stringFromDate : Date -> String
+stringFromDate date =
     let
         day =
-            Time.toDay zone time
+            Date.day date
                 |> padInt
 
         month =
-            case Time.toMonth zone time of
-                Time.Jan ->
-                    "01"
-
-                Time.Feb ->
-                    "02"
-
-                Time.Mar ->
-                    "03"
-
-                Time.Apr ->
-                    "04"
-
-                Time.May ->
-                    "05"
-
-                Time.Jun ->
-                    "06"
-
-                Time.Jul ->
-                    "07"
-
-                Time.Aug ->
-                    "08"
-
-                Time.Sep ->
-                    "09"
-
-                Time.Oct ->
-                    "10"
-
-                Time.Nov ->
-                    "11"
-
-                Time.Dec ->
-                    "12"
+            Date.monthNumber date
+                |> padInt
 
         year =
-            Time.toYear zone time
+            Date.year date
                 |> String.fromInt
+    in
+    day ++ "." ++ month ++ "." ++ year
 
+
+stringFromSimpleTime : SimpleTime -> String
+stringFromSimpleTime time =
+    let
         hour =
-            Time.toHour zone time
+            SimpleTime.hour time
                 |> padInt
 
         minute =
-            Time.toMinute zone time
+            SimpleTime.minute time
                 |> padInt
     in
-    day ++ "." ++ month ++ "." ++ year ++ " " ++ hour ++ ":" ++ minute
+    hour ++ ":" ++ minute
 
 
 padInt : Int -> String

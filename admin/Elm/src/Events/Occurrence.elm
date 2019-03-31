@@ -1,49 +1,33 @@
 module Events.Occurrence exposing
     ( Occurrence
-    , duration
-    , location
+    , OccurrenceTime
     , occurrenceDecoder
-    , start
+    , splitOccurrence
     )
 
+import Date exposing (Date)
 import Events.Location as Location exposing (Location, locationDecoder)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Time
+import Utils.SimpleTime as SimpleTime exposing (SimpleTime)
 
 
-type Occurrence
-    = Occurrence
-        { start : Time.Posix
-        , duration : Duration
-        , location : Location
-        }
-
-
-start : Occurrence -> Time.Posix
-start (Occurrence occurrence) =
-    occurrence.start
-
-
-duration : Occurrence -> Duration
-duration (Occurrence occurrence) =
-    occurrence.duration
-
-
-location : Occurrence -> Location
-location (Occurrence occurrence) =
-    occurrence.location
+type alias Occurrence =
+    { start : Time.Posix
+    , duration : Duration
+    , location : Location
+    }
 
 
 occurrenceDecoder : Decode.Decoder Occurrence
 occurrenceDecoder =
     Decode.map3
         (\start_ duration_ location_ ->
-            Occurrence
-                { start = start_
-                , duration = duration_
-                , location = location_
-                }
+            { start = start_
+            , duration = duration_
+            , location = location_
+            }
         )
         (Decode.field "start" posixDecoder)
         (Decode.field "duration" durationDecoder)
@@ -67,3 +51,27 @@ durationDecoder =
     Decode.map
         Seconds
         Decode.int
+
+
+type alias OccurrenceTime =
+    { startTime : SimpleTime
+    , duration : Duration
+    , location : Location
+    }
+
+
+splitOccurrence : Time.Zone -> Occurrence -> ( Date, OccurrenceTime )
+splitOccurrence zone occurrence =
+    let
+        startTime =
+            SimpleTime.fromPosix zone occurrence.start
+
+        occurrenceTime =
+            { startTime = startTime
+            , duration = occurrence.duration
+            , location = occurrence.location
+            }
+    in
+    ( Date.fromPosix zone occurrence.start
+    , occurrenceTime
+    )

@@ -1,34 +1,25 @@
-module Events.Location exposing (Location, address, locationDecoder, name)
+module Events.Location exposing
+    ( Location
+    , locationDecoder
+    )
 
 import Json.Decode as Decode
 import Json.Encode as Encode
 
 
-type Location
-    = Location
-        { name : String
-        , address : String
-        }
-
-
-name : Location -> String
-name (Location location) =
-    location.name
-
-
-address : Location -> String
-address (Location location) =
-    location.address
+type alias Location =
+    { name : String
+    , address : String
+    }
 
 
 locationDecoder : Decode.Decoder Location
 locationDecoder =
     Decode.map2
         (\name_ address_ ->
-            Location
-                { name = name_
-                , address = address_
-                }
+            { name = name_
+            , address = address_
+            }
         )
         (Decode.field "name" Decode.string)
         (Decode.field "address" Decode.string)
