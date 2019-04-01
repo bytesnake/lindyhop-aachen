@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Browser
 import Date exposing (Date)
-import Events exposing (Event, EventList, decodeEventList)
+import Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
 import Html exposing (Html, div, h1, h2, li, ol, p, text)
 import Http
 import Json.Decode as Decode
@@ -246,17 +246,62 @@ viewLoaded : Model -> List (Html Msg)
 viewLoaded model =
     [ h1 [] [ text "Admin" ]
     , ol []
-        (List.map viewEvent model.events)
+        (List.map (\event -> li [] [ viewEvent model.timezone event ]) model.events)
     ]
 
 
-viewEvent : Event -> Html Msg
-viewEvent event =
-    p [] [ text event.name ]
+viewEvent : Time.Zone -> Event -> Html Msg
+viewEvent zone event =
+    let
+        max =
+            5
+
+        occurrencesPreview =
+            List.take max event.occurrences
+
+        doesOverflow =
+            List.length event.occurrences > max
+
+        occurrenceListItems =
+            List.map (\occurrence -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
+
+        listItems =
+            occurrenceListItems
+                ++ (if doesOverflow then
+                        [ li [] [ text "…" ] ]
+
+                    else
+                        []
+                   )
+    in
+    div []
+        [ text event.name
+        , ol [] listItems
+        ]
+
+
+viewOccurrence : Time.Zone -> Occurrence -> Html Msg
+viewOccurrence zone occurrence =
+    div []
+        [ text <| stringFromPosix zone occurrence.start ++ " - " ++ occurrence.location.name ]
 
 
 
 -- View Helpers
+
+
+stringFromPosix : Time.Zone -> Time.Posix -> String
+stringFromPosix zone posix =
+    let
+        date =
+            Date.fromPosix zone posix
+                |> stringFromDate
+
+        time =
+            SimpleTime.fromPosix zone posix
+                |> stringFromSimpleTime
+    in
+    date ++ " " ++ time
 
 
 stringFromDate : Date -> String

@@ -610,11 +610,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.ae.K === region.ao.K)
+	if (region.ae.K === region.ap.K)
 	{
 		return 'on line ' + region.ae.K;
 	}
-	return 'on lines ' + region.ae.K + ' through ' + region.ao.K;
+	return 'on lines ' + region.ae.K + ' through ' + region.ap.K;
 }
 
 
@@ -2388,7 +2388,7 @@ function _Http_toMetadata(xhr)
 {
 	return {
 		bn: xhr.responseURL,
-		aT: xhr.status,
+		aU: xhr.status,
 		bj: xhr.statusText,
 		i: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
@@ -4245,9 +4245,9 @@ function _Browser_application(impl)
 					var next = elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.aI === next.aI
-							&& curr.au === next.au
-							&& curr.aE.a === next.aE.a
+							&& curr.aJ === next.aJ
+							&& curr.av === next.av
+							&& curr.aF.a === next.aF.a
 						)
 							? elm$browser$Browser$Internal(next)
 							: elm$browser$Browser$External(href)
@@ -4418,7 +4418,7 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		aQ: _Browser_getScene(),
+		aR: _Browser_getScene(),
 		aY: {
 			S: _Browser_window.pageXOffset,
 			T: _Browser_window.pageYOffset,
@@ -4457,7 +4457,7 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			aQ: {
+			aR: {
 				I: node.scrollWidth,
 				D: node.scrollHeight
 			},
@@ -4495,7 +4495,7 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			aQ: _Browser_getScene(),
+			aR: _Browser_getScene(),
 			aY: {
 				S: x,
 				T: y,
@@ -4643,7 +4643,7 @@ var author$project$Main$load = F3(
 		var loaded = F2(
 			function (zone, events) {
 				return author$project$Main$Loaded(
-					{X: events, aW: zone});
+					{X: events, ah: zone});
 			});
 		switch (model.$) {
 			case 0:
@@ -5160,7 +5160,7 @@ var author$project$Events$decodeLocation = A4(
 	elm$json$Json$Decode$map3,
 	F3(
 		function (id, name, address) {
-			return {aj: address, p: id, L: name};
+			return {ak: address, p: id, L: name};
 		}),
 	A2(elm$json$Json$Decode$field, 'id', elm$json$Json$Decode$int),
 	A2(elm$json$Json$Decode$field, 'name', elm$json$Json$Decode$string),
@@ -5171,7 +5171,7 @@ var author$project$Events$RawEvent = F5(
 	});
 var author$project$Events$RawOccurrence = F4(
 	function (id, start, duration, locationId) {
-		return {W: duration, p: id, az: locationId, ae: start};
+		return {W: duration, p: id, aA: locationId, ae: start};
 	});
 var elm$json$Json$Decode$map = _Json_map1;
 var elm$core$Basics$identity = function (x) {
@@ -5259,7 +5259,7 @@ var author$project$Events$decodeEventList = function () {
 			var maybeLocation = A2(
 				elm_community$list_extra$List$Extra$find,
 				function (loc) {
-					return _Utils_eq(loc.p, rawOccurrence.az);
+					return _Utils_eq(loc.p, rawOccurrence.aA);
 				},
 				locations);
 			return A2(
@@ -6089,7 +6089,7 @@ var elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return elm$core$Result$Err(
-					elm$http$Http$BadStatus(metadata.aT));
+					elm$http$Http$BadStatus(metadata.aU));
 			default:
 				var body = response.b;
 				return A2(
@@ -6118,7 +6118,7 @@ var elm$http$Http$Request = function (a) {
 };
 var elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {aL: reqs, aU: subs};
+		return {aM: reqs, aV: subs};
 	});
 var elm$http$Http$init = elm$core$Task$succeed(
 	A2(elm$http$Http$State, elm$core$Dict$empty, _List_Nil));
@@ -6192,7 +6192,7 @@ var elm$http$Http$onEffects = F4(
 				return elm$core$Task$succeed(
 					A2(elm$http$Http$State, reqs, subs));
 			},
-			A3(elm$http$Http$updateReqs, router, cmds, state.aL));
+			A3(elm$http$Http$updateReqs, router, cmds, state.aM));
 	});
 var elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
@@ -6235,7 +6235,7 @@ var elm$http$Http$onSelfMsg = F3(
 				A2(
 					elm$core$List$filterMap,
 					A3(elm$http$Http$maybeSend, router, tracker, progress),
-					state.aU)));
+					state.aV)));
 	});
 var elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -6371,16 +6371,583 @@ var author$project$Main$viewError = function (error) {
 				]))
 		]);
 };
-var author$project$Main$viewEvent = function (event) {
-	return A2(
-		elm$html$Html$p,
-		_List_Nil,
-		_List_fromArray(
-			[
-				elm$html$Html$text(event.L)
-			]));
+var author$project$Main$padInt = function (n) {
+	return (n < 10) ? ('0' + elm$core$String$fromInt(n)) : elm$core$String$fromInt(n);
 };
+var elm$time$Time$Jan = 0;
+var justinmimbs$date$Date$RD = elm$core$Basics$identity;
+var elm$core$Basics$modBy = _Basics_modBy;
+var elm$core$Basics$neq = _Utils_notEqual;
+var justinmimbs$date$Date$isLeapYear = function (y) {
+	return ((!A2(elm$core$Basics$modBy, 4, y)) && A2(elm$core$Basics$modBy, 100, y)) || (!A2(elm$core$Basics$modBy, 400, y));
+};
+var justinmimbs$date$Date$daysInMonth = F2(
+	function (y, m) {
+		switch (m) {
+			case 0:
+				return 31;
+			case 1:
+				return justinmimbs$date$Date$isLeapYear(y) ? 29 : 28;
+			case 2:
+				return 31;
+			case 3:
+				return 30;
+			case 4:
+				return 31;
+			case 5:
+				return 30;
+			case 6:
+				return 31;
+			case 7:
+				return 31;
+			case 8:
+				return 30;
+			case 9:
+				return 31;
+			case 10:
+				return 30;
+			default:
+				return 31;
+		}
+	});
+var justinmimbs$date$Date$monthToNumber = function (m) {
+	switch (m) {
+		case 0:
+			return 1;
+		case 1:
+			return 2;
+		case 2:
+			return 3;
+		case 3:
+			return 4;
+		case 4:
+			return 5;
+		case 5:
+			return 6;
+		case 6:
+			return 7;
+		case 7:
+			return 8;
+		case 8:
+			return 9;
+		case 9:
+			return 10;
+		case 10:
+			return 11;
+		default:
+			return 12;
+	}
+};
+var elm$time$Time$Apr = 3;
+var elm$time$Time$Aug = 7;
+var elm$time$Time$Dec = 11;
+var elm$time$Time$Feb = 1;
+var elm$time$Time$Jul = 6;
+var elm$time$Time$Jun = 5;
+var elm$time$Time$Mar = 2;
+var elm$time$Time$May = 4;
+var elm$time$Time$Nov = 10;
+var elm$time$Time$Oct = 9;
+var elm$time$Time$Sep = 8;
+var justinmimbs$date$Date$numberToMonth = function (mn) {
+	var _n0 = A2(elm$core$Basics$max, 1, mn);
+	switch (_n0) {
+		case 1:
+			return 0;
+		case 2:
+			return 1;
+		case 3:
+			return 2;
+		case 4:
+			return 3;
+		case 5:
+			return 4;
+		case 6:
+			return 5;
+		case 7:
+			return 6;
+		case 8:
+			return 7;
+		case 9:
+			return 8;
+		case 10:
+			return 9;
+		case 11:
+			return 10;
+		default:
+			return 11;
+	}
+};
+var justinmimbs$date$Date$toCalendarDateHelp = F3(
+	function (y, m, d) {
+		toCalendarDateHelp:
+		while (true) {
+			var monthDays = A2(justinmimbs$date$Date$daysInMonth, y, m);
+			var mn = justinmimbs$date$Date$monthToNumber(m);
+			if ((mn < 12) && (_Utils_cmp(d, monthDays) > 0)) {
+				var $temp$y = y,
+					$temp$m = justinmimbs$date$Date$numberToMonth(mn + 1),
+					$temp$d = d - monthDays;
+				y = $temp$y;
+				m = $temp$m;
+				d = $temp$d;
+				continue toCalendarDateHelp;
+			} else {
+				return {ao: d, aB: m, a$: y};
+			}
+		}
+	});
+var justinmimbs$date$Date$floorDiv = F2(
+	function (a, b) {
+		return elm$core$Basics$floor(a / b);
+	});
+var justinmimbs$date$Date$daysBeforeYear = function (y1) {
+	var y = y1 - 1;
+	var leapYears = (A2(justinmimbs$date$Date$floorDiv, y, 4) - A2(justinmimbs$date$Date$floorDiv, y, 100)) + A2(justinmimbs$date$Date$floorDiv, y, 400);
+	return (365 * y) + leapYears;
+};
+var justinmimbs$date$Date$divWithRemainder = F2(
+	function (a, b) {
+		return _Utils_Tuple2(
+			A2(justinmimbs$date$Date$floorDiv, a, b),
+			A2(elm$core$Basics$modBy, b, a));
+	});
+var justinmimbs$date$Date$year = function (_n0) {
+	var rd = _n0;
+	var _n1 = A2(justinmimbs$date$Date$divWithRemainder, rd, 146097);
+	var n400 = _n1.a;
+	var r400 = _n1.b;
+	var _n2 = A2(justinmimbs$date$Date$divWithRemainder, r400, 36524);
+	var n100 = _n2.a;
+	var r100 = _n2.b;
+	var _n3 = A2(justinmimbs$date$Date$divWithRemainder, r100, 1461);
+	var n4 = _n3.a;
+	var r4 = _n3.b;
+	var _n4 = A2(justinmimbs$date$Date$divWithRemainder, r4, 365);
+	var n1 = _n4.a;
+	var r1 = _n4.b;
+	var n = (!r1) ? 0 : 1;
+	return ((((n400 * 400) + (n100 * 100)) + (n4 * 4)) + n1) + n;
+};
+var justinmimbs$date$Date$toOrdinalDate = function (_n0) {
+	var rd = _n0;
+	var y = justinmimbs$date$Date$year(rd);
+	return {
+		ab: rd - justinmimbs$date$Date$daysBeforeYear(y),
+		a$: y
+	};
+};
+var justinmimbs$date$Date$toCalendarDate = function (_n0) {
+	var rd = _n0;
+	var date = justinmimbs$date$Date$toOrdinalDate(rd);
+	return A3(justinmimbs$date$Date$toCalendarDateHelp, date.a$, 0, date.ab);
+};
+var justinmimbs$date$Date$day = A2(
+	elm$core$Basics$composeR,
+	justinmimbs$date$Date$toCalendarDate,
+	function ($) {
+		return $.ao;
+	});
+var justinmimbs$date$Date$month = A2(
+	elm$core$Basics$composeR,
+	justinmimbs$date$Date$toCalendarDate,
+	function ($) {
+		return $.aB;
+	});
+var justinmimbs$date$Date$monthNumber = A2(elm$core$Basics$composeR, justinmimbs$date$Date$month, justinmimbs$date$Date$monthToNumber);
+var author$project$Main$stringFromDate = function (date) {
+	var year = elm$core$String$fromInt(
+		justinmimbs$date$Date$year(date));
+	var month = author$project$Main$padInt(
+		justinmimbs$date$Date$monthNumber(date));
+	var day = author$project$Main$padInt(
+		justinmimbs$date$Date$day(date));
+	return day + ('.' + (month + ('.' + year)));
+};
+var author$project$Utils$SimpleTime$hour = function (_n0) {
+	var hour_ = _n0.a;
+	return hour_;
+};
+var author$project$Utils$SimpleTime$minute = function (_n0) {
+	var minute_ = _n0.b;
+	return minute_;
+};
+var author$project$Main$stringFromSimpleTime = function (time) {
+	var minute = author$project$Main$padInt(
+		author$project$Utils$SimpleTime$minute(time));
+	var hour = author$project$Main$padInt(
+		author$project$Utils$SimpleTime$hour(time));
+	return hour + (':' + minute);
+};
+var author$project$Utils$SimpleTime$SimpleTime = F2(
+	function (a, b) {
+		return {$: 0, a: a, b: b};
+	});
+var elm$time$Time$flooredDiv = F2(
+	function (numerator, denominator) {
+		return elm$core$Basics$floor(numerator / denominator);
+	});
+var elm$time$Time$posixToMillis = function (_n0) {
+	var millis = _n0;
+	return millis;
+};
+var elm$time$Time$toAdjustedMinutesHelp = F3(
+	function (defaultOffset, posixMinutes, eras) {
+		toAdjustedMinutesHelp:
+		while (true) {
+			if (!eras.b) {
+				return posixMinutes + defaultOffset;
+			} else {
+				var era = eras.a;
+				var olderEras = eras.b;
+				if (_Utils_cmp(era.ae, posixMinutes) < 0) {
+					return posixMinutes + era.b;
+				} else {
+					var $temp$defaultOffset = defaultOffset,
+						$temp$posixMinutes = posixMinutes,
+						$temp$eras = olderEras;
+					defaultOffset = $temp$defaultOffset;
+					posixMinutes = $temp$posixMinutes;
+					eras = $temp$eras;
+					continue toAdjustedMinutesHelp;
+				}
+			}
+		}
+	});
+var elm$time$Time$toAdjustedMinutes = F2(
+	function (_n0, time) {
+		var defaultOffset = _n0.a;
+		var eras = _n0.b;
+		return A3(
+			elm$time$Time$toAdjustedMinutesHelp,
+			defaultOffset,
+			A2(
+				elm$time$Time$flooredDiv,
+				elm$time$Time$posixToMillis(time),
+				60000),
+			eras);
+	});
+var elm$time$Time$toHour = F2(
+	function (zone, time) {
+		return A2(
+			elm$core$Basics$modBy,
+			24,
+			A2(
+				elm$time$Time$flooredDiv,
+				A2(elm$time$Time$toAdjustedMinutes, zone, time),
+				60));
+	});
+var elm$time$Time$toMinute = F2(
+	function (zone, time) {
+		return A2(
+			elm$core$Basics$modBy,
+			60,
+			A2(elm$time$Time$toAdjustedMinutes, zone, time));
+	});
+var author$project$Utils$SimpleTime$fromPosix = F2(
+	function (zone, time) {
+		var minute_ = A2(elm$time$Time$toMinute, zone, time);
+		var hour_ = A2(elm$time$Time$toHour, zone, time);
+		return A2(author$project$Utils$SimpleTime$SimpleTime, hour_, minute_);
+	});
+var elm$core$Basics$ge = _Utils_ge;
+var elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var elm$time$Time$toCivil = function (minutes) {
+	var rawDay = A2(elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
+	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
+	var dayOfEra = rawDay - (era * 146097);
+	var yearOfEra = ((((dayOfEra - ((dayOfEra / 1460) | 0)) + ((dayOfEra / 36524) | 0)) - ((dayOfEra / 146096) | 0)) / 365) | 0;
+	var dayOfYear = dayOfEra - (((365 * yearOfEra) + ((yearOfEra / 4) | 0)) - ((yearOfEra / 100) | 0));
+	var mp = (((5 * dayOfYear) + 2) / 153) | 0;
+	var month = mp + ((mp < 10) ? 3 : (-9));
+	var year = yearOfEra + (era * 400);
+	return {
+		ao: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
+		aB: month,
+		a$: year + ((month <= 2) ? 1 : 0)
+	};
+};
+var elm$time$Time$toDay = F2(
+	function (zone, time) {
+		return elm$time$Time$toCivil(
+			A2(elm$time$Time$toAdjustedMinutes, zone, time)).ao;
+	});
+var elm$time$Time$toMonth = F2(
+	function (zone, time) {
+		var _n0 = elm$time$Time$toCivil(
+			A2(elm$time$Time$toAdjustedMinutes, zone, time)).aB;
+		switch (_n0) {
+			case 1:
+				return 0;
+			case 2:
+				return 1;
+			case 3:
+				return 2;
+			case 4:
+				return 3;
+			case 5:
+				return 4;
+			case 6:
+				return 5;
+			case 7:
+				return 6;
+			case 8:
+				return 7;
+			case 9:
+				return 8;
+			case 10:
+				return 9;
+			case 11:
+				return 10;
+			default:
+				return 11;
+		}
+	});
+var elm$time$Time$toYear = F2(
+	function (zone, time) {
+		return elm$time$Time$toCivil(
+			A2(elm$time$Time$toAdjustedMinutes, zone, time)).a$;
+	});
+var elm$core$Basics$clamp = F3(
+	function (low, high, number) {
+		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
+	});
+var justinmimbs$date$Date$daysBeforeMonth = F2(
+	function (y, m) {
+		var leapDays = justinmimbs$date$Date$isLeapYear(y) ? 1 : 0;
+		switch (m) {
+			case 0:
+				return 0;
+			case 1:
+				return 31;
+			case 2:
+				return 59 + leapDays;
+			case 3:
+				return 90 + leapDays;
+			case 4:
+				return 120 + leapDays;
+			case 5:
+				return 151 + leapDays;
+			case 6:
+				return 181 + leapDays;
+			case 7:
+				return 212 + leapDays;
+			case 8:
+				return 243 + leapDays;
+			case 9:
+				return 273 + leapDays;
+			case 10:
+				return 304 + leapDays;
+			default:
+				return 334 + leapDays;
+		}
+	});
+var justinmimbs$date$Date$fromCalendarDate = F3(
+	function (y, m, d) {
+		return (justinmimbs$date$Date$daysBeforeYear(y) + A2(justinmimbs$date$Date$daysBeforeMonth, y, m)) + A3(
+			elm$core$Basics$clamp,
+			1,
+			A2(justinmimbs$date$Date$daysInMonth, y, m),
+			d);
+	});
+var justinmimbs$date$Date$fromPosix = F2(
+	function (zone, posix) {
+		return A3(
+			justinmimbs$date$Date$fromCalendarDate,
+			A2(elm$time$Time$toYear, zone, posix),
+			A2(elm$time$Time$toMonth, zone, posix),
+			A2(elm$time$Time$toDay, zone, posix));
+	});
+var author$project$Main$stringFromPosix = F2(
+	function (zone, posix) {
+		var time = author$project$Main$stringFromSimpleTime(
+			A2(author$project$Utils$SimpleTime$fromPosix, zone, posix));
+		var date = author$project$Main$stringFromDate(
+			A2(justinmimbs$date$Date$fromPosix, zone, posix));
+		return date + (' ' + time);
+	});
+var elm$html$Html$div = _VirtualDom_node('div');
+var author$project$Main$viewOccurrence = F2(
+	function (zone, occurrence) {
+		return A2(
+			elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					elm$html$Html$text(
+					A2(author$project$Main$stringFromPosix, zone, occurrence.ae) + (' - ' + occurrence.bc.L))
+				]));
+	});
+var elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2(elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return elm$core$List$reverse(
+			A3(elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _n0 = _Utils_Tuple2(n, list);
+			_n0$1:
+			while (true) {
+				_n0$5:
+				while (true) {
+					if (!_n0.b.b) {
+						return list;
+					} else {
+						if (_n0.b.b.b) {
+							switch (_n0.a) {
+								case 1:
+									break _n0$1;
+								case 2:
+									var _n2 = _n0.b;
+									var x = _n2.a;
+									var _n3 = _n2.b;
+									var y = _n3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_n0.b.b.b.b) {
+										var _n4 = _n0.b;
+										var x = _n4.a;
+										var _n5 = _n4.b;
+										var y = _n5.a;
+										var _n6 = _n5.b;
+										var z = _n6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _n0$5;
+									}
+								default:
+									if (_n0.b.b.b.b && _n0.b.b.b.b.b) {
+										var _n7 = _n0.b;
+										var x = _n7.a;
+										var _n8 = _n7.b;
+										var y = _n8.a;
+										var _n9 = _n8.b;
+										var z = _n9.a;
+										var _n10 = _n9.b;
+										var w = _n10.a;
+										var tl = _n10.b;
+										return (ctr > 1000) ? A2(
+											elm$core$List$cons,
+											x,
+											A2(
+												elm$core$List$cons,
+												y,
+												A2(
+													elm$core$List$cons,
+													z,
+													A2(
+														elm$core$List$cons,
+														w,
+														A2(elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											elm$core$List$cons,
+											x,
+											A2(
+												elm$core$List$cons,
+												y,
+												A2(
+													elm$core$List$cons,
+													z,
+													A2(
+														elm$core$List$cons,
+														w,
+														A3(elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _n0$5;
+									}
+							}
+						} else {
+							if (_n0.a === 1) {
+								break _n0$1;
+							} else {
+								break _n0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _n1 = _n0.b;
+			var x = _n1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var elm$core$List$take = F2(
+	function (n, list) {
+		return A3(elm$core$List$takeFast, 0, n, list);
+	});
+var elm$html$Html$li = _VirtualDom_node('li');
 var elm$html$Html$ol = _VirtualDom_node('ol');
+var author$project$Main$viewEvent = F2(
+	function (zone, event) {
+		var max = 5;
+		var occurrencesPreview = A2(elm$core$List$take, max, event._);
+		var occurrenceListItems = A2(
+			elm$core$List$map,
+			function (occurrence) {
+				return A2(
+					elm$html$Html$li,
+					_List_Nil,
+					_List_fromArray(
+						[
+							A2(author$project$Main$viewOccurrence, zone, occurrence)
+						]));
+			},
+			occurrencesPreview);
+		var doesOverflow = _Utils_cmp(
+			elm$core$List$length(event._),
+			max) > 0;
+		var listItems = _Utils_ap(
+			occurrenceListItems,
+			doesOverflow ? _List_fromArray(
+				[
+					A2(
+					elm$html$Html$li,
+					_List_Nil,
+					_List_fromArray(
+						[
+							elm$html$Html$text('…')
+						]))
+				]) : _List_Nil);
+		return A2(
+			elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					elm$html$Html$text(event.L),
+					A2(elm$html$Html$ol, _List_Nil, listItems)
+				]));
+	});
 var author$project$Main$viewLoaded = function (model) {
 	return _List_fromArray(
 		[
@@ -6394,7 +6961,18 @@ var author$project$Main$viewLoaded = function (model) {
 			A2(
 			elm$html$Html$ol,
 			_List_Nil,
-			A2(elm$core$List$map, author$project$Main$viewEvent, model.X))
+			A2(
+				elm$core$List$map,
+				function (event) {
+					return A2(
+						elm$html$Html$li,
+						_List_Nil,
+						_List_fromArray(
+							[
+								A2(author$project$Main$viewEvent, model.ah, event)
+							]));
+				},
+				model.X))
 		]);
 };
 var author$project$Main$viewLoading = _List_fromArray(
@@ -6479,7 +7057,7 @@ var elm$core$String$contains = _String_contains;
 var elm$core$String$toInt = _String_toInt;
 var elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {as: fragment, au: host, aC: path, aE: port_, aI: protocol, aJ: query};
+		return {at: fragment, av: host, aD: path, aF: port_, aJ: protocol, aK: query};
 	});
 var elm$url$Url$chompBeforePath = F5(
 	function (protocol, path, params, frag, str) {
