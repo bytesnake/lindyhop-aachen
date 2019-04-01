@@ -89,6 +89,30 @@ fn read_events() -> Content<&'static str> {
                             "start": 1554748200,
                             "duration": 90,
                             "location": 2
+                        },
+                        {
+                            "id": 5,
+                            "start": 1555360200,
+                            "duration": 90,
+                            "location": 1
+                        },
+                        {
+                            "id": 6,
+                            "start": 1555963200,
+                            "duration": 90,
+                            "location": 2
+                        },
+                        {
+                            "id": 7,
+                            "start": 1556569800,
+                            "duration": 90,
+                            "location": 1
+                        },
+                        {
+                            "id": 8,
+                            "start": 1557172800,
+                            "duration": 90,
+                            "location": 2
                         }
                     ]
                 }
