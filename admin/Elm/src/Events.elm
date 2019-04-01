@@ -1,72 +1,173 @@
-module Events exposing
-    ( EventsTree
-    , OccurrenceList
-    , dateTreeFromOccurrenceList
-    , occurrenceListFromEventsTree
-    )
+module Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
 
-import Date exposing (Date)
-import Dict exposing (Dict)
-import Events.Event as Event exposing (Event, FullEvent)
-import Events.Occurrence as Occurrence exposing (Occurrence, OccurrenceTime)
+import Json.Decode as Decode
+import List.Extra as List
 import Time
+import Utils.SimpleTime exposing (SimpleTime)
 
 
-type alias EventsTree =
-    List FullEvent
+type alias EventList =
+    List Event
 
 
-type alias OccurrenceList =
-    List ( Occurrence, Event )
+type alias Event =
+    { id : Int
+    , name : String
+    , teaser : String
+    , description : String
+    , occurrences : List Occurrence
+    }
 
 
-occurrenceListFromEventsTree : EventsTree -> OccurrenceList
-occurrenceListFromEventsTree fullEvents =
+type alias Occurrence =
+    { id : Int
+    , start : Time.Posix
+    , duration : Int
+    , location : Location
+    }
+
+
+type alias Location =
+    { id : Int
+    , name : String
+    , address : String
+    }
+
+
+
+-- Decode
+
+
+decodeEventList : Decode.Decoder EventList
+decodeEventList =
     let
-        sortByOccurrences : List FullEvent -> List ( Occurrence, Event )
-        sortByOccurrences fullEvents_ =
-            List.concatMap
-                (\fullEvent ->
-                    let
-                        event =
-                            fullEvent.event
-                    in
-                    List.map
-                        (\occurrence -> ( occurrence, event ))
-                        fullEvent.occurrences
+        mapMaybe : (a -> Maybe b) -> List a -> Maybe (List b)
+        mapMaybe map list =
+            List.foldl
+                (\item maybeResult ->
+                    Maybe.andThen
+                        (\result ->
+                            case map item of
+                                Just successor ->
+                                    Just <| result ++ [ successor ]
+
+                                Nothing ->
+                                    Nothing
+                        )
+                        maybeResult
                 )
-                fullEvents_
-    in
-    sortByOccurrences fullEvents
+                (Just [])
+                list
 
-
-type alias DateTree =
-    List ( Date, List ( OccurrenceTime, Event ) )
-
-
-type alias RataDie =
-    Int
-
-
-dateTreeFromOccurrenceList : Time.Zone -> OccurrenceList -> DateTree
-dateTreeFromOccurrenceList zone occurrences =
-    List.foldl
-        (\( occurrence, event ) dict ->
+        mapEvent : List Location -> RawEvent -> Maybe Event
+        mapEvent locations rawEvent =
             let
-                ( date, occurrenceTime ) =
-                    Occurrence.splitOccurrence zone occurrence
-
-                rataDie =
-                    Date.toRataDie date
-
-                update maybeKey =
-                    Maybe.withDefault [] maybeKey
-                        |> List.append [ ( occurrenceTime, event ) ]
-                        |> Just
+                maybeOccurrences =
+                    mapMaybe (mapOccurrence locations) rawEvent.occurrences
             in
-            Dict.update rataDie update dict
+            Maybe.map
+                (\occurrences ->
+                    Event
+                        rawEvent.id
+                        rawEvent.name
+                        rawEvent.teaser
+                        rawEvent.description
+                        occurrences
+                )
+                maybeOccurrences
+
+        mapOccurrence : List Location -> RawOccurrence -> Maybe Occurrence
+        mapOccurrence locations rawOccurrence =
+            let
+                maybeLocation =
+                    List.find (\loc -> loc.id == rawOccurrence.locationId) locations
+            in
+            Maybe.map
+                (\location ->
+                    Occurrence
+                        rawOccurrence.id
+                        rawOccurrence.start
+                        rawOccurrence.duration
+                        location
+                )
+                maybeLocation
+
+        combine : List Location -> List RawEvent -> Maybe EventList
+        combine locations rawEvents =
+            mapMaybe
+                (mapEvent locations)
+                rawEvents
+    in
+    Decode.map2
+        combine
+        (Decode.field "locations" (Decode.list decodeLocation))
+        (Decode.field "events" (Decode.list decodeRawEvent))
+        |> Decode.andThen
+            (\maybeEvents ->
+                case maybeEvents of
+                    Just events ->
+                        Decode.succeed events
+
+                    Nothing ->
+                        Decode.fail "An occurrence has used an invalid location id."
+            )
+
+
+type alias RawEvent =
+    { id : Int
+    , name : String
+    , teaser : String
+    , description : String
+    , occurrences : List RawOccurrence
+    }
+
+
+decodeRawEvent : Decode.Decoder RawEvent
+decodeRawEvent =
+    Decode.map5
+        RawEvent
+        (Decode.field "id" Decode.int)
+        (Decode.field "name" Decode.string)
+        (Decode.field "teaser" Decode.string)
+        (Decode.field "description" Decode.string)
+        (Decode.field "occurrences" (Decode.list decodeRawOccurrence))
+
+
+type alias RawOccurrence =
+    { id : Int
+    , start : Time.Posix
+    , duration : Int
+    , locationId : Int
+    }
+
+
+decodeRawOccurrence : Decode.Decoder RawOccurrence
+decodeRawOccurrence =
+    Decode.map4
+        RawOccurrence
+        (Decode.field "id" Decode.int)
+        (Decode.field "start" decodePosix)
+        (Decode.field "duration" Decode.int)
+        (Decode.field "location" Decode.int)
+
+
+decodePosix : Decode.Decoder Time.Posix
+decodePosix =
+    Decode.int
+        -- Timestamp in JSON is second-based
+        |> Decode.map (\seconds -> seconds * 1000)
+        |> Decode.map Time.millisToPosix
+
+
+decodeLocation : Decode.Decoder Location
+decodeLocation =
+    Decode.map3
+        (\id name address ->
+            { id = id
+            , name = name
+            , address = address
+            }
         )
-        Dict.empty
-        occurrences
-        |> Dict.toList
-        |> List.map (Tuple.mapFirst Date.fromRataDie)
+        (Decode.field "id" Decode.int)
+        (Decode.field "name" Decode.string)
+        (Decode.field "address" Decode.string)

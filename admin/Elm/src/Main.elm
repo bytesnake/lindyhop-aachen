@@ -3,10 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Browser
 import Date exposing (Date)
-import Events exposing (EventsTree, OccurrenceList)
-import Events.Event as Event exposing (Event, FullEvent, fullEventDecoder)
-import Events.Location as Location exposing (Location)
-import Events.Occurrence as Occurrence exposing (Occurrence, OccurrenceTime)
+import Events exposing (Event, EventList, decodeEventList)
 import Html exposing (Html, div, h1, h2, li, ol, p, text)
 import Http
 import Json.Decode as Decode
@@ -37,7 +34,7 @@ main =
 
 type AppModel
     = Loading
-    | LoadedEvents (List FullEvent)
+    | LoadedEvents EventList
     | ErrorLoadingEvents Http.Error
     | LoadedTimezone Time.Zone
     | Loaded Model
@@ -45,7 +42,7 @@ type AppModel
 
 type alias Model =
     { timezone : Time.Zone
-    , events : OccurrenceList
+    , events : EventList
     }
 
 
@@ -62,7 +59,7 @@ init _ url key =
         getEvents =
             Http.get
                 { url = "/api/events"
-                , expect = Http.expectJson FetchedEvents (Decode.list fullEventDecoder)
+                , expect = Http.expectJson FetchedEvents decodeEventList
                 }
     in
     ( Loading, Cmd.batch [ getTimezone, getEvents ] )
@@ -80,7 +77,7 @@ subscriptions model =
 type AppMsg
     = AppNoOp
     | FetchedTimezone Time.Zone
-    | FetchedEvents (Result Http.Error (List FullEvent))
+    | FetchedEvents (Result Http.Error EventList)
     | Sub Msg
 
 
@@ -119,15 +116,14 @@ appUpdate msg model =
                     ( model, Cmd.none )
 
 
-load : Maybe Time.Zone -> Maybe (List FullEvent) -> AppModel -> AppModel
+load : Maybe Time.Zone -> Maybe EventList -> AppModel -> AppModel
 load maybeZone maybeEvents model =
     let
-        loaded : Time.Zone -> List FullEvent -> AppModel
+        loaded : Time.Zone -> EventList -> AppModel
         loaded zone events =
             Loaded
                 { timezone = zone
-                , events =
-                    Events.occurrenceListFromEventsTree events
+                , events = events
                 }
     in
     case model of
@@ -219,8 +215,30 @@ viewLoading =
 
 viewError : Http.Error -> List (Html AppMsg)
 viewError error =
+    let
+        errorMessage =
+            case error of
+                Http.BadUrl url ->
+                    "Es gibt einen Programmierfehler. (Die URL ist nicht wohlgeformt.)"
+
+                Http.Timeout ->
+                    "Der Server hat zu lange gebraucht, um eine Antwort zu senden."
+
+                Http.NetworkError ->
+                    "Der Server ist nicht erreichbar."
+
+                Http.BadStatus status ->
+                    "Es gibt einen Programmierfehler. (Der Server antwortet mit Statuscode " ++ String.fromInt status ++ ".)"
+
+                Http.BadBody err ->
+                    "Der Server hat ungültig geantwortet. (" ++ err ++ ")"
+    in
     [ h1 [] [ text "Admin" ]
-    , p [] [ text "Beim Laden der Events ist ein Fehler passiert." ]
+    , p []
+        [ text "Beim Laden der Events ist ein Fehler passiert:"
+        , Html.br [] []
+        , text errorMessage
+        ]
     ]
 
 
@@ -228,37 +246,13 @@ viewLoaded : Model -> List (Html Msg)
 viewLoaded model =
     [ h1 [] [ text "Admin" ]
     , ol []
-        (List.map
-            (\( date, occurrences ) ->
-                li []
-                    [ text <| stringFromDate date
-                    , ol []
-                        (List.map
-                            (\( occurrence, event ) ->
-                                li [] [ viewOccurrence model.timezone occurrence event ]
-                            )
-                            occurrences
-                        )
-                    ]
-            )
-            (Events.dateTreeFromOccurrenceList model.timezone model.events)
-        )
+        (List.map viewEvent model.events)
     ]
 
 
-viewOccurrence : Time.Zone -> OccurrenceTime -> Event -> Html Msg
-viewOccurrence zone occurrence event =
-    let
-        startTime =
-            stringFromSimpleTime occurrence.startTime
-
-        description =
-            startTime ++ " - " ++ occurrence.location.name
-    in
-    div []
-        [ p [] [ text event.name ]
-        , p [] [ text description ]
-        ]
+viewEvent : Event -> Html Msg
+viewEvent event =
+    p [] [ text event.name ]
 
 
 
