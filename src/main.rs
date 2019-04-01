@@ -4,11 +4,10 @@ mod events;
 
 #[macro_use]
 extern crate rocket;
-use rocket::State;
-use rocket::response::content::Content;
 use rocket::http::ContentType;
+use rocket::response::content::Content;
+use rocket::State;
 
-use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
 use events::{Event, Location, Occurrence};
@@ -36,7 +35,7 @@ fn render_event(event: &Event) -> Markup {
 }
 
 #[get("/api/events")]
-fn read_events() -> Content<&'static str>{
+fn read_events() -> Content<&'static str> {
     Content(ContentType::JSON,
         r#"
         {
