@@ -8,6 +8,13 @@
     "scripts": {
         "build": "elm make --optimize --output=../dist/index.html src/Main.elm",
         "test": "elm-test",
-        "format": "elm-format ."
+        "format": "elm-format .",
+        "temp": "chokidar src/**/*.elm -c \"echo test\"",
+        "watch:fake-backend": "npm run launch-fake-backend & chokidar src/**/*.elm -c \"elm make --optimize --output=fake-backend/static/admin/index.html src/Main.elm\" --initial",
+        "launch-fake-backend": "json-server --watch fake-backend/db.json --routes fake-backend/routes.json --static fake-backend/static"
+    },
+    "devDependencies": {
+        "chokidar-cli": "^1.2.2",
+        "json-server": "^0.14.2"
     }
 }
