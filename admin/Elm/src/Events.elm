@@ -5,7 +5,8 @@ module Events exposing
     , Location
     , Occurrence
     , decodeEventList
-module Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
+    , fetchEvents
+    , findEvent
     , stringFromId
     )
 
@@ -52,6 +53,23 @@ type alias Location =
     { name : String
     , address : String
     }
+
+
+
+-- Init
+
+
+fetchEvents : (Result Http.Error EventList -> msg) -> Cmd msg
+fetchEvents toMsg =
+    Http.get
+        { url = "/api/events"
+        , expect = Http.expectJson toMsg decodeEventList
+        }
+
+
+findEvent : String -> EventList -> Maybe ( Id Event, Event )
+findEvent rawId events =
+    List.find (\( currentId, _ ) -> currentId == Id rawId) events
 
 
 

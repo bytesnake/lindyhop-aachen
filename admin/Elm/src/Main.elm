@@ -4,9 +4,12 @@ import Browser
 import Browser.Navigation as Browser
 import Date exposing (Date)
 import Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
-import Html exposing (Html, div, h1, h2, li, ol, p, text)
+import Html exposing (Html, a, div, h1, h2, li, ol, p, text)
+import Html.Attributes exposing (href)
+import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode
+import Routes exposing (Route)
 import Task
 import Time
 import Url exposing (Url)
@@ -23,8 +26,8 @@ main =
         , view = view
         , update = appUpdate
         , subscriptions = subscriptions
-        , onUrlRequest = \_ -> AppNoOp
-        , onUrlChange = \_ -> AppNoOp
+        , onUrlRequest = LinkClicked
+        , onUrlChange = UrlChanged
         }
 
 
@@ -32,18 +35,36 @@ main =
 -- Model
 
 
-type AppModel
-    = Loading
-    | LoadedEvents EventList
+type alias AppModel =
+    { key : Browser.Key
+    , status : AppModelStatus
+    }
+
+
+type AppModelStatus
+    = Loading Route
+    | LoadedEvents Route EventList
     | ErrorLoadingEvents Http.Error
-    | LoadedTimezone Time.Zone
+    | LoadedTimezone Route Time.Zone
     | Loaded Model
 
 
 type alias Model =
+    { common : Common
+    , route : RouteModel
+    }
+
+
+type alias Common =
     { timezone : Time.Zone
     , events : EventList
     }
+
+
+type RouteModel
+    = Overview
+    | Event Event
+    | NotFound
 
 
 
@@ -53,16 +74,22 @@ type alias Model =
 init : () -> Url -> Browser.Key -> ( AppModel, Cmd AppMsg )
 init _ url key =
     let
+        route =
+            Routes.toRoute url
+    in
+    initWith key route
+
+
+initWith : Browser.Key -> Route -> ( AppModel, Cmd AppMsg )
+initWith key route =
+    let
         getTimezone =
             Task.perform FetchedTimezone Time.here
 
         getEvents =
-            Http.get
-                { url = "/api/events"
-                , expect = Http.expectJson FetchedEvents decodeEventList
-                }
+            Events.fetchEvents FetchedEvents
     in
-    ( Loading, Cmd.batch [ getTimezone, getEvents ] )
+    ( AppModel key (Loading route), Cmd.batch [ getTimezone, getEvents ] )
 
 
 subscriptions : AppModel -> Sub AppMsg
@@ -76,9 +103,11 @@ subscriptions model =
 
 type AppMsg
     = AppNoOp
+    | LinkClicked Browser.UrlRequest
+    | UrlChanged Url
     | FetchedTimezone Time.Zone
     | FetchedEvents (Result Http.Error EventList)
-    | Sub Msg
+    | SubMsg Msg
 
 
 appUpdate : AppMsg -> AppModel -> ( AppModel, Cmd AppMsg )
@@ -86,6 +115,55 @@ appUpdate msg model =
     case msg of
         AppNoOp ->
             ( model, Cmd.none )
+
+        LinkClicked request ->
+            case request of
+                Browser.Internal url ->
+                    ( model, Browser.pushUrl model.key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Browser.load href )
+
+        UrlChanged url ->
+            let
+                route =
+                    Routes.toRoute url
+
+                modelStatus =
+                    case model.status of
+                        Loading _ ->
+                            Loading route
+
+                        LoadedEvents _ events ->
+                            LoadedEvents route events
+
+                        LoadedTimezone _ zone ->
+                            LoadedTimezone route zone
+
+                        ErrorLoadingEvents _ ->
+                            model.status
+
+                        Loaded subModel ->
+                            let
+                                subModelRoute =
+                                    case route of
+                                        Routes.Overview ->
+                                            Overview
+
+                                        Routes.Event rawId ->
+                                            case Events.findEvent rawId subModel.common.events of
+                                                Just ( _, event ) ->
+                                                    Event event
+
+                                                Nothing ->
+                                                    NotFound
+
+                                        Routes.NotFound ->
+                                            NotFound
+                            in
+                            Loaded (Model subModel.common subModelRoute)
+            in
+            ( AppModel model.key modelStatus, Cmd.none )
 
         FetchedTimezone zone ->
             let
@@ -102,15 +180,15 @@ appUpdate msg model =
                             load Nothing (Just events) model
 
                         Err error ->
-                            ErrorLoadingEvents error
+                            AppModel model.key <| ErrorLoadingEvents error
             in
             ( newModel, Cmd.none )
 
-        Sub subMsg ->
-            case model of
+        SubMsg subMsg ->
+            case model.status of
                 Loaded loadedModel ->
                     update subMsg loadedModel
-                        |> Tuple.mapBoth Loaded (Cmd.map Sub)
+                        |> Tuple.mapBoth (AppModel model.key << Loaded) (Cmd.map SubMsg)
 
                 _ ->
                     ( model, Cmd.none )
@@ -119,43 +197,64 @@ appUpdate msg model =
 load : Maybe Time.Zone -> Maybe EventList -> AppModel -> AppModel
 load maybeZone maybeEvents model =
     let
-        loaded : Time.Zone -> EventList -> AppModel
-        loaded zone events =
-            Loaded
-                { timezone = zone
-                , events = events
-                }
+        wrap : AppModelStatus -> AppModel
+        wrap status =
+            AppModel model.key status
+
+        loaded : Route -> Time.Zone -> EventList -> AppModelStatus
+        loaded route zone events =
+            let
+                routeModel =
+                    case route of
+                        Routes.Overview ->
+                            Overview
+
+                        Routes.Event id ->
+                            Events.findEvent id events
+                                |> Maybe.map (\( eventId, event ) -> Event event)
+                                |> Maybe.withDefault NotFound
+
+                        Routes.NotFound ->
+                            NotFound
+            in
+            Loaded <| Model (Common zone events) routeModel
     in
-    case model of
-        Loading ->
-            case ( maybeZone, maybeEvents ) of
+    case model.status of
+        Loading route ->
+            (case ( maybeZone, maybeEvents ) of
                 ( Just zone, Just events ) ->
-                    loaded zone events
+                    loaded route zone events
 
                 ( Just zone, Nothing ) ->
-                    LoadedTimezone zone
+                    LoadedTimezone route zone
 
                 ( Nothing, Just events ) ->
-                    LoadedEvents events
+                    LoadedEvents route events
 
                 ( Nothing, Nothing ) ->
-                    Loading
+                    Loading route
+            )
+                |> wrap
 
-        LoadedEvents events ->
-            case maybeZone of
+        LoadedEvents route events ->
+            (case maybeZone of
                 Just zone ->
-                    loaded zone events
+                    loaded route zone events
 
                 Nothing ->
-                    LoadedEvents events
+                    LoadedEvents route events
+            )
+                |> wrap
 
-        LoadedTimezone zone ->
-            case maybeEvents of
+        LoadedTimezone route zone ->
+            (case maybeEvents of
                 Just events ->
-                    loaded zone events
+                    loaded route zone events
 
                 Nothing ->
-                    LoadedTimezone zone
+                    LoadedTimezone route zone
+            )
+                |> wrap
 
         ErrorLoadingEvents _ ->
             model
@@ -166,6 +265,7 @@ load maybeZone maybeEvents model =
 
 type Msg
     = NoOp
+    | EventSelected Event
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -173,6 +273,9 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        EventSelected event ->
+            ( Model model.common <| Event event, Cmd.none )
 
 
 
@@ -184,14 +287,14 @@ view appModel =
     let
         html : List (Html AppMsg)
         html =
-            case appModel of
-                Loading ->
+            case appModel.status of
+                Loading _ ->
                     viewLoading
 
-                LoadedEvents _ ->
+                LoadedEvents _ _ ->
                     viewLoading
 
-                LoadedTimezone _ ->
+                LoadedTimezone _ _ ->
                     viewLoading
 
                 ErrorLoadingEvents error ->
@@ -199,7 +302,7 @@ view appModel =
 
                 Loaded model ->
                     viewLoaded model
-                        |> List.map (Html.map Sub)
+                        |> List.map (Html.map SubMsg)
     in
     { title = "Lindy Hop Aachen Admin"
     , body = html
@@ -244,9 +347,29 @@ viewError error =
 
 viewLoaded : Model -> List (Html Msg)
 viewLoaded model =
+    case model.route of
+        Overview ->
+            viewOverview model.common.timezone model.common.events
+
+        Event event ->
+            viewEventEdit model.common.timezone event
+
+        NotFound ->
+            viewNotFound
+
+
+viewOverview : Time.Zone -> EventList -> List (Html Msg)
+viewOverview zone events =
     [ h1 [] [ text "Admin" ]
     , ol []
-        (List.map (\event -> li [] [ viewEvent model.timezone event ]) model.events)
+        (List.map (\( id, event ) -> li [] [ a [ href <| "event/" ++ Events.stringFromId id ] [ viewEvent zone event ] ]) events)
+    ]
+
+
+viewEventEdit : Time.Zone -> Event -> List (Html Msg)
+viewEventEdit zone event =
+    [ h1 [] [ text "Admin" ]
+    , viewEvent zone event
     ]
 
 
@@ -263,7 +386,7 @@ viewEvent zone event =
             List.length event.occurrences > max
 
         occurrenceListItems =
-            List.map (\occurrence -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
+            List.map (\( _, occurrence ) -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
 
         listItems =
             occurrenceListItems
@@ -282,8 +405,17 @@ viewEvent zone event =
 
 viewOccurrence : Time.Zone -> Occurrence -> Html Msg
 viewOccurrence zone occurrence =
+    let
+        location =
+            Tuple.second occurrence.location
+    in
     div []
-        [ text <| stringFromPosix zone occurrence.start ++ " - " ++ occurrence.location.name ]
+        [ text <| stringFromPosix zone occurrence.start ++ " - " ++ location.name ]
+
+
+viewNotFound : List (Html Msg)
+viewNotFound =
+    [ h1 [] [ text "404 - Not Found" ] ]
 
 
 
