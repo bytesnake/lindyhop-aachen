@@ -1,12 +1,14 @@
 module Events exposing
     ( Event
-    , EventList
+    , Events
     , Id
     , Location
     , Occurrence
     , decodeEventList
     , fetchEvents
     , findEvent
+    , locations
+    , map
     , stringFromId
     )
 
@@ -15,10 +17,6 @@ import Json.Decode as Decode
 import List.Extra as List
 import Time
 import Utils.SimpleTime exposing (SimpleTime)
-
-
-type alias EventList =
-    List (Entry Event)
 
 
 type Id a
@@ -56,10 +54,77 @@ type alias Location =
 
 
 
+-- Events
+
+
+type alias RefEvent =
+    { name : String
+    , teaser : String
+    , description : String
+    , occurrences : List ( Id Occurrence, RefOccurrence )
+    }
+
+
+type alias RefOccurrence =
+    { start : Time.Posix
+    , duration : Int
+    , location : Id Location
+    }
+
+
+type Events
+    = Events (List (Entry Location)) (List ( Id Event, RefEvent ))
+
+
+locations : Events -> List (Entry Location)
+locations (Events locs _) =
+    locs
+
+
+map : (Entry Event -> b) -> Events -> List b
+map mapping (Events locs events) =
+    List.map
+        (\( id, refEvent ) ->
+            let
+                occurrences =
+                    List.map
+                        (\( occId, refOccurrence ) ->
+                            let
+                                location =
+                                    List.find
+                                        (\( current, _ ) ->
+                                            current == refOccurrence.location
+                                        )
+                                        locs
+                                        -- This case will never happen.
+                                        |> Maybe.withDefault ( Id "notFound", { name = "NotFound", address = "NoWhere" } )
+                            in
+                            ( occId
+                            , { start = refOccurrence.start
+                              , duration = refOccurrence.duration
+                              , location = location
+                              }
+                            )
+                        )
+                        refEvent.occurrences
+            in
+            ( id
+            , { name = refEvent.name
+              , teaser = refEvent.teaser
+              , description = refEvent.description
+              , occurrences = occurrences
+              }
+            )
+        )
+        events
+        |> List.map mapping
+
+
+
 -- Init
 
 
-fetchEvents : (Result Http.Error EventList -> msg) -> Cmd msg
+fetchEvents : (Result Http.Error Events -> msg) -> Cmd msg
 fetchEvents toMsg =
     Http.get
         { url = "/api/events"
@@ -67,90 +132,51 @@ fetchEvents toMsg =
         }
 
 
-findEvent : String -> EventList -> Maybe ( Id Event, Event )
+findEvent : String -> Events -> Maybe ( Id Event, Event )
 findEvent rawId events =
-    List.find (\( currentId, _ ) -> currentId == Id rawId) events
+    let
+        eventList =
+            map identity events
+    in
+    List.find (\( currentId, _ ) -> currentId == Id rawId) eventList
 
 
 
 -- Decode
 
 
-decodeEventList : Decode.Decoder EventList
+decodeEventList : Decode.Decoder Events
 decodeEventList =
     let
-        mapMaybe : (a -> Maybe b) -> List a -> Maybe (List b)
-        mapMaybe map list =
-            List.foldl
-                (\item maybeResult ->
-                    Maybe.andThen
-                        (\result ->
-                            case map item of
-                                Just successor ->
-                                    Just <| result ++ [ successor ]
-
-                                Nothing ->
-                                    Nothing
-                        )
-                        maybeResult
-                )
-                (Just [])
-                list
-
-        mapEvent : List (Entry Location) -> RawEvent -> Maybe (Entry Event)
-        mapEvent locations rawEvent =
+        mapEvent : RawEvent -> ( Id Event, RefEvent )
+        mapEvent rawEvent =
             let
-                maybeOccurrences =
-                    mapMaybe (mapOccurrence locations) rawEvent.occurrences
+                occurrences =
+                    List.map mapOccurrence rawEvent.occurrences
             in
-            Maybe.map
-                (\occurrences ->
-                    ( Id rawEvent.id
-                    , Event
-                        rawEvent.name
-                        rawEvent.teaser
-                        rawEvent.description
-                        occurrences
-                    )
-                )
-                maybeOccurrences
+            ( Id rawEvent.id
+            , RefEvent
+                rawEvent.name
+                rawEvent.teaser
+                rawEvent.description
+                occurrences
+            )
 
-        mapOccurrence : List (Entry Location) -> RawOccurrence -> Maybe (Entry Occurrence)
-        mapOccurrence locations rawOccurrence =
-            let
-                maybeLocation =
-                    List.find (\( Id id, _ ) -> id == rawOccurrence.locationId) locations
-            in
-            Maybe.map
-                (\location ->
-                    ( Id rawOccurrence.id
-                    , Occurrence
-                        rawOccurrence.start
-                        rawOccurrence.duration
-                        location
-                    )
-                )
-                maybeLocation
-
-        combine : List (Entry Location) -> List RawEvent -> Maybe EventList
-        combine locations rawEvents =
-            mapMaybe
-                (mapEvent locations)
-                rawEvents
+        mapOccurrence : RawOccurrence -> ( Id Occurrence, RefOccurrence )
+        mapOccurrence rawOccurrence =
+            ( Id rawOccurrence.id
+            , RefOccurrence
+                rawOccurrence.start
+                rawOccurrence.duration
+                (Id rawOccurrence.locationId)
+            )
     in
     Decode.map2
-        combine
+        (\locs events ->
+            Events locs (List.map mapEvent events)
+        )
         (Decode.field "locations" (Decode.list decodeLocation))
         (Decode.field "events" (Decode.list decodeRawEvent))
-        |> Decode.andThen
-            (\maybeEvents ->
-                case maybeEvents of
-                    Just events ->
-                        Decode.succeed events
-
-                    Nothing ->
-                        Decode.fail "An occurrence has used an invalid location id."
-            )
 
 
 type alias RawEvent =
