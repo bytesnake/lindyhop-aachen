@@ -1,5 +1,16 @@
-module Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
+module Events exposing
+    ( Event
+    , EventList
+    , Id
+    , Location
+    , Occurrence
+    , decodeEventList
+    , fetchEvents
+    , findEvent
+    , stringFromId
+    )
 
+import Http
 import Json.Decode as Decode
 import List.Extra as List
 import Time
@@ -7,31 +18,58 @@ import Utils.SimpleTime exposing (SimpleTime)
 
 
 type alias EventList =
-    List Event
+    List (Entry Event)
+
+
+type Id a
+    = Id String
+
+
+stringFromId : Id a -> String
+stringFromId (Id rawId) =
+    rawId
+
+
+type alias Entry a =
+    ( Id a, a )
 
 
 type alias Event =
-    { id : Int
-    , name : String
+    { name : String
     , teaser : String
     , description : String
-    , occurrences : List Occurrence
+    , occurrences : List (Entry Occurrence)
     }
 
 
 type alias Occurrence =
-    { id : Int
-    , start : Time.Posix
+    { start : Time.Posix
     , duration : Int
-    , location : Location
+    , location : Entry Location
     }
 
 
 type alias Location =
-    { id : Int
-    , name : String
+    { name : String
     , address : String
     }
+
+
+
+-- Init
+
+
+fetchEvents : (Result Http.Error EventList -> msg) -> Cmd msg
+fetchEvents toMsg =
+    Http.get
+        { url = "/api/events"
+        , expect = Http.expectJson toMsg decodeEventList
+        }
+
+
+findEvent : String -> EventList -> Maybe ( Id Event, Event )
+findEvent rawId events =
+    List.find (\( currentId, _ ) -> currentId == Id rawId) events
 
 
 
@@ -59,7 +97,7 @@ decodeEventList =
                 (Just [])
                 list
 
-        mapEvent : List Location -> RawEvent -> Maybe Event
+        mapEvent : List (Entry Location) -> RawEvent -> Maybe (Entry Event)
         mapEvent locations rawEvent =
             let
                 maybeOccurrences =
@@ -67,32 +105,34 @@ decodeEventList =
             in
             Maybe.map
                 (\occurrences ->
-                    Event
-                        rawEvent.id
+                    ( Id rawEvent.id
+                    , Event
                         rawEvent.name
                         rawEvent.teaser
                         rawEvent.description
                         occurrences
+                    )
                 )
                 maybeOccurrences
 
-        mapOccurrence : List Location -> RawOccurrence -> Maybe Occurrence
+        mapOccurrence : List (Entry Location) -> RawOccurrence -> Maybe (Entry Occurrence)
         mapOccurrence locations rawOccurrence =
             let
                 maybeLocation =
-                    List.find (\loc -> loc.id == rawOccurrence.locationId) locations
+                    List.find (\( Id id, _ ) -> id == rawOccurrence.locationId) locations
             in
             Maybe.map
                 (\location ->
-                    Occurrence
-                        rawOccurrence.id
+                    ( Id rawOccurrence.id
+                    , Occurrence
                         rawOccurrence.start
                         rawOccurrence.duration
                         location
+                    )
                 )
                 maybeLocation
 
-        combine : List Location -> List RawEvent -> Maybe EventList
+        combine : List (Entry Location) -> List RawEvent -> Maybe EventList
         combine locations rawEvents =
             mapMaybe
                 (mapEvent locations)
@@ -114,7 +154,7 @@ decodeEventList =
 
 
 type alias RawEvent =
-    { id : Int
+    { id : String
     , name : String
     , teaser : String
     , description : String
@@ -126,7 +166,7 @@ decodeRawEvent : Decode.Decoder RawEvent
 decodeRawEvent =
     Decode.map5
         RawEvent
-        (Decode.field "id" Decode.int)
+        (Decode.field "id" Decode.string)
         (Decode.field "name" Decode.string)
         (Decode.field "teaser" Decode.string)
         (Decode.field "description" Decode.string)
@@ -134,10 +174,10 @@ decodeRawEvent =
 
 
 type alias RawOccurrence =
-    { id : Int
+    { id : String
     , start : Time.Posix
     , duration : Int
-    , locationId : Int
+    , locationId : String
     }
 
 
@@ -145,10 +185,10 @@ decodeRawOccurrence : Decode.Decoder RawOccurrence
 decodeRawOccurrence =
     Decode.map4
         RawOccurrence
-        (Decode.field "id" Decode.int)
+        (Decode.field "id" Decode.string)
         (Decode.field "start" decodePosix)
         (Decode.field "duration" Decode.int)
-        (Decode.field "location" Decode.int)
+        (Decode.field "location" Decode.string)
 
 
 decodePosix : Decode.Decoder Time.Posix
@@ -159,15 +199,16 @@ decodePosix =
         |> Decode.map Time.millisToPosix
 
 
-decodeLocation : Decode.Decoder Location
+decodeLocation : Decode.Decoder (Entry Location)
 decodeLocation =
     Decode.map3
         (\id name address ->
-            { id = id
-            , name = name
-            , address = address
-            }
+            ( Id id
+            , { name = name
+              , address = address
+              }
+            )
         )
-        (Decode.field "id" Decode.int)
+        (Decode.field "id" Decode.string)
         (Decode.field "name" Decode.string)
         (Decode.field "address" Decode.string)
