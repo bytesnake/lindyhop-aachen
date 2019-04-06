@@ -23,6 +23,7 @@ module Events exposing
 
 -}
 
+import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
 import List.Extra as List
@@ -34,6 +35,11 @@ import Utils.SimpleTime exposing (SimpleTime)
 -}
 type Id a
     = Id String
+
+
+idFromString : String -> Id a
+idFromString rawId =
+    Id rawId
 
 
 {-| Convert an id to a string for use in URLs.
@@ -85,21 +91,22 @@ type alias RefEvent =
 type alias RefOccurrence =
     { start : Time.Posix
     , duration : Int
-    , location : Id Location
+    , locationId : Id Location
     }
 
 
 {-| Event container.
 -}
 type Events
-    = Events (List (Entry Location)) (List ( Id Event, RefEvent ))
+    = Events (Dict String Location) (List ( Id Event, RefEvent ))
 
 
 {-| Extracts the locations.
 -}
 locations : Events -> List (Entry Location)
 locations (Events locs _) =
-    locs
+    Dict.toList locs
+        |> List.map (Tuple.mapFirst Id)
 
 
 {-| Maps over all entries.
@@ -109,26 +116,23 @@ map mapping (Events locs events) =
     List.map
         (\( id, refEvent ) ->
             let
+                locationEntry locId =
+                    Dict.get (stringFromId locId) locs
+                        |> Maybe.map (\loc -> ( locId, loc ))
+                        -- This case will never happen.
+                        |> Maybe.withDefault ( Id "notFound", { name = "NotFound", address = "NoWhere" } )
+
+                mapOccurrence ( occId, refOccurrence ) =
+                    ( occId
+                    , { start = refOccurrence.start
+                      , duration = refOccurrence.duration
+                      , location = locationEntry refOccurrence.locationId
+                      }
+                    )
+
                 occurrences =
                     List.map
-                        (\( occId, refOccurrence ) ->
-                            let
-                                location =
-                                    List.find
-                                        (\( current, _ ) ->
-                                            current == refOccurrence.location
-                                        )
-                                        locs
-                                        -- This case will never happen.
-                                        |> Maybe.withDefault ( Id "notFound", { name = "NotFound", address = "NoWhere" } )
-                            in
-                            ( occId
-                            , { start = refOccurrence.start
-                              , duration = refOccurrence.duration
-                              , location = location
-                              }
-                            )
-                        )
+                        mapOccurrence
                         refEvent.occurrences
             in
             ( id
@@ -200,7 +204,12 @@ decodeEventList =
     in
     Decode.map2
         (\locs events ->
-            Events locs (List.map mapEvent events)
+            let
+                locsDict =
+                    List.map (Tuple.mapFirst stringFromId) locs
+                        |> Dict.fromList
+            in
+            Events locsDict (List.map mapEvent events)
         )
         (Decode.field "locations" (Decode.list decodeLocation))
         (Decode.field "events" (Decode.list decodeRawEvent))
