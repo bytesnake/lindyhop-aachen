@@ -1,16 +1,27 @@
 module Events exposing
-    ( Event
-    , Events
-    , Id
-    , Location
-    , Occurrence
-    , decodeEventList
+    ( Events, Id, stringFromId, Event, Occurrence, Location
     , fetchEvents
-    , findEvent
-    , locations
-    , map
-    , stringFromId
+    , map, locations, findEvent
     )
+
+{-| Fetches, stores, and makes accessible the events from the backend.
+
+
+# Types
+
+@docs Events, Id, stringFromId, Entry, Event, Occurrence, Location
+
+
+# Fetch
+
+@docs fetchEvents
+
+
+# Access
+
+@docs map, locations, findEvent
+
+-}
 
 import Http
 import Json.Decode as Decode
@@ -19,15 +30,21 @@ import Time
 import Utils.SimpleTime exposing (SimpleTime)
 
 
+{-| Wrapper for ids to prevent mixing of ids from different types at compile time.
+-}
 type Id a
     = Id String
 
 
+{-| Convert an id to a string for use in URLs.
+-}
 stringFromId : Id a -> String
 stringFromId (Id rawId) =
     rawId
 
 
+{-| Associates an id with an item.
+-}
 type alias Entry a =
     ( Id a, a )
 
@@ -72,15 +89,21 @@ type alias RefOccurrence =
     }
 
 
+{-| Event container.
+-}
 type Events
     = Events (List (Entry Location)) (List ( Id Event, RefEvent ))
 
 
+{-| Extracts the locations.
+-}
 locations : Events -> List (Entry Location)
 locations (Events locs _) =
     locs
 
 
+{-| Maps over all entries.
+-}
 map : (Entry Event -> b) -> Events -> List b
 map mapping (Events locs events) =
     List.map
@@ -124,6 +147,8 @@ map mapping (Events locs events) =
 -- Init
 
 
+{-| The HTTP command to fetch the events.
+-}
 fetchEvents : (Result Http.Error Events -> msg) -> Cmd msg
 fetchEvents toMsg =
     Http.get
@@ -132,6 +157,8 @@ fetchEvents toMsg =
         }
 
 
+{-| Extracts a single event by its id.
+-}
 findEvent : String -> Events -> Maybe ( Id Event, Event )
 findEvent rawId events =
     let

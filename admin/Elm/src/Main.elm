@@ -35,12 +35,16 @@ main =
 -- Model
 
 
+{-| The highest level model.
+-}
 type alias AppModel =
     { key : Browser.Key
     , status : AppModelStatus
     }
 
 
+{-| Describes the app startup.
+-}
 type AppModelStatus
     = Loading Route
     | LoadedEvents Route Events
@@ -49,18 +53,24 @@ type AppModelStatus
     | Loaded Model
 
 
+{-| The model for the loaded app.
+-}
 type alias Model =
     { common : Common
     , route : RouteModel
     }
 
 
+{-| Data that is shared between all routes.
+-}
 type alias Common =
     { timezone : Time.Zone
     , events : Events
     }
 
 
+{-| Each route's model.
+-}
 type RouteModel
     = Overview
     | Event Event
