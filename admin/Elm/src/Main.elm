@@ -9,6 +9,7 @@ import Html.Attributes exposing (href, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
+import Pages.EditEvent
 import Pages.Overview
 import Routes exposing (Route)
 import Session exposing (Session)
@@ -77,16 +78,21 @@ sessionFromModel model =
         Overview subModel ->
             Just (Pages.Overview.sessionFromModel subModel)
 
+        EditEvent subModel ->
+            Just (Pages.EditEvent.sessionFromModel subModel)
+
 
 type RouteModel
     = LoadingRoute
     | ErrorLoading
     | NotFound Session
     | Overview Pages.Overview.Model
+    | EditEvent Pages.EditEvent.Model
 
 
 type RouteLoadModel
     = OverviewLoad Pages.Overview.LoadModel
+    | EditEventLoad Pages.EditEvent.LoadModel
 
 
 
@@ -122,6 +128,8 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | OverviewLoadMsg Pages.Overview.LoadMsg
+    | EditEventLoadMsg Pages.EditEvent.LoadMsg
+    | EditEventMsg Pages.EditEvent.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -141,7 +149,11 @@ update msg model =
 
                 Routes.Overview ->
                     Pages.Overview.init session OverviewLoadMsg
-                        |> Tuple.mapFirst (\subModel -> Loading key (loadedFromModel model) (OverviewLoad subModel))
+                        |> wrapLoadModel model OverviewLoad
+
+                Routes.Event rawId ->
+                    Pages.EditEvent.init session rawId EditEventLoadMsg
+                        |> wrapLoadModel model EditEventLoad
 
         LinkClicked request ->
             case request of
@@ -167,12 +179,12 @@ update msg model =
                             ( Loaded key <| NotFound session, Cmd.none )
 
                         Routes.Overview ->
-                            let
-                                loaded =
-                                    loadedFromModel model
-                            in
                             Pages.Overview.init session OverviewLoadMsg
-                                |> Tuple.mapFirst (\subModel -> Loading key loaded (OverviewLoad subModel))
+                                |> wrapLoadModel model OverviewLoad
+
+                        Routes.Event rawId ->
+                            Pages.EditEvent.init session rawId EditEventLoadMsg
+                                |> wrapLoadModel model EditEventLoad
 
                 Nothing ->
                     let
@@ -193,6 +205,54 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        EditEventLoadMsg subMsg ->
+            case model of
+                Loading key loaded (EditEventLoad subModel) ->
+                    case Pages.EditEvent.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (EditEvent newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditEventMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        EditEvent subModel ->
+                            Pages.EditEvent.update subMsg subModel
+                                |> Tuple.mapBoth EditEvent (Cmd.map EditEventMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
+
+wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> ( subModel, Cmd msg ) -> ( Model, Cmd msg )
+wrapLoadModel model wrapper updateTuple =
+    let
+        key =
+            keyFromModel model
+
+        loaded =
+            loadedFromModel model
+    in
+    Tuple.mapFirst (\subModel -> Loading key loaded (wrapper subModel)) updateTuple
+
+
+updateLoaded : (RouteModel -> ( RouteModel, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
+updateLoaded updater model =
+    case model of
+        Loaded key loaded ->
+            updater loaded |> Tuple.mapFirst (Loaded key)
+
+        Loading key loaded loading ->
+            updater loaded |> Tuple.mapFirst (\newLoaded -> Loading key newLoaded loading)
 
 
 
@@ -216,6 +276,10 @@ view model =
             Overview subModel ->
                 Pages.Overview.view subModel
                     |> List.map (Html.map (\_ -> NoOp))
+
+            EditEvent subModel ->
+                Pages.EditEvent.view subModel
+                    |> List.map (Html.map EditEventMsg)
     }
 
 
