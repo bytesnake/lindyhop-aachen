@@ -12,10 +12,11 @@ module Pages.EditEvent exposing
     )
 
 import Events exposing (Event, Events, Id)
-import Html exposing (Html, input, label, text)
+import Html exposing (Html, input, label, p, text, textarea)
 import Html.Attributes exposing (type_, value)
 import Html.Events exposing (onInput)
 import Http
+import Json.Encode as Encode
 import Session exposing (Session)
 
 
@@ -75,6 +76,8 @@ updateLoad msg model =
 
 type Msg
     = InputName String
+    | InputTeaser String
+    | InputDescription String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -82,19 +85,61 @@ update msg model =
     case msg of
         InputName newName ->
             let
-                event =
-                    model.event
-
-                newEvent =
-                    { event | name = newName }
+                newModel =
+                    updateEvent model
+                        (\event -> { event | name = newName })
             in
-            ( { model | event = newEvent }, Cmd.none )
+            ( newModel, Cmd.none )
+
+        InputTeaser newTeaser ->
+            let
+                newModel =
+                    updateEvent model
+                        (\event -> { event | teaser = newTeaser })
+            in
+            ( newModel, Cmd.none )
+
+        InputDescription newDescription ->
+            let
+                newModel =
+                    updateEvent model
+                        (\event -> { event | description = newDescription })
+            in
+            ( newModel, Cmd.none )
+
+
+updateEvent : Model -> (Event -> Event) -> Model
+updateEvent model eventUpdater =
+    let
+        event =
+            model.event
+
+        newEvent =
+            eventUpdater event
+    in
+    { model | event = newEvent }
 
 
 view : Model -> List (Html Msg)
 view model =
-    [ label []
-        [ text "Titel"
-        , input [ type_ "text", value model.event.name, onInput InputName ] []
-        ]
+    [ viewInputText "Titel" model.event.name InputName
+    , viewInputText "Teaser" model.event.teaser InputTeaser
+    , viewTextArea "Beschreibung" model.event.description InputDescription
+    , p [] [ text <| Encode.encode 2 (Events.encodeEvent model.event) ]
     ]
+
+
+viewInputText : String -> String -> (String -> Msg) -> Html Msg
+viewInputText lbl val inputMsg =
+    label []
+        [ text lbl
+        , input [ type_ "text", value val, onInput inputMsg ] []
+        ]
+
+
+viewTextArea : String -> String -> (String -> Msg) -> Html Msg
+viewTextArea lbl val inputMsg =
+    label []
+        [ text lbl
+        , textarea [ value val, onInput inputMsg ] []
+        ]

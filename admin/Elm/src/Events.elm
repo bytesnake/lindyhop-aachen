@@ -2,6 +2,7 @@ module Events exposing
     ( Events, Id, stringFromId, Event, Occurrence, Location
     , fetchEvents
     , map, locations, findEvent
+    , encodeEvent
     )
 
 {-| Fetches, stores, and makes accessible the events from the backend.
