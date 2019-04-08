@@ -416,7 +416,7 @@ viewEvent zone event =
             List.length event.occurrences > max
 
         occurrenceListItems =
-            List.map (\( _, occurrence ) -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
+            List.map (\occurrence -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
 
         listItems =
             occurrenceListItems

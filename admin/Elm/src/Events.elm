@@ -26,6 +26,7 @@ module Events exposing
 import Dict exposing (Dict)
 import Http
 import Json.Decode as Decode
+import Json.Encode as Encode
 import List.Extra as List
 import Time
 import Utils.SimpleTime exposing (SimpleTime)
@@ -59,7 +60,7 @@ type alias Event =
     { name : String
     , teaser : String
     , description : String
-    , occurrences : List (Entry Occurrence)
+    , occurrences : List Occurrence
     }
 
 
@@ -84,7 +85,7 @@ type alias RefEvent =
     { name : String
     , teaser : String
     , description : String
-    , occurrences : List ( Id Occurrence, RefOccurrence )
+    , occurrences : List RefOccurrence
     }
 
 
@@ -122,13 +123,11 @@ map mapping (Events locs events) =
                         -- This case will never happen.
                         |> Maybe.withDefault ( Id "notFound", { name = "NotFound", address = "NoWhere" } )
 
-                mapOccurrence ( occId, refOccurrence ) =
-                    ( occId
-                    , { start = refOccurrence.start
-                      , duration = refOccurrence.duration
-                      , location = locationEntry refOccurrence.locationId
-                      }
-                    )
+                mapOccurrence refOccurrence =
+                    { start = refOccurrence.start
+                    , duration = refOccurrence.duration
+                    , location = locationEntry refOccurrence.locationId
+                    }
 
                 occurrences =
                     List.map
@@ -157,7 +156,7 @@ fetchEvents : (Result Http.Error Events -> msg) -> Cmd msg
 fetchEvents toMsg =
     Http.get
         { url = "/api/events"
-        , expect = Http.expectJson toMsg decodeEventList
+        , expect = Http.expectJson toMsg decodeEvents
         }
 
 
@@ -172,34 +171,34 @@ findEvent rawId events =
     List.find (\( currentId, _ ) -> currentId == Id rawId) eventList
 
 
+updateEvent : Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
+updateEvent id event toMsg =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = "/api/event/" ++ stringFromId id
+        , body = Http.jsonBody (encodeEvent event)
+        , expect = Http.expectWhatever toMsg
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 
 -- Decode
 
 
-decodeEventList : Decode.Decoder Events
-decodeEventList =
+decodeEvents : Decode.Decoder Events
+decodeEvents =
     let
         mapEvent : RawEvent -> ( Id Event, RefEvent )
         mapEvent rawEvent =
-            let
-                occurrences =
-                    List.map mapOccurrence rawEvent.occurrences
-            in
             ( Id rawEvent.id
             , RefEvent
                 rawEvent.name
                 rawEvent.teaser
                 rawEvent.description
-                occurrences
-            )
-
-        mapOccurrence : RawOccurrence -> ( Id Occurrence, RefOccurrence )
-        mapOccurrence rawOccurrence =
-            ( Id rawOccurrence.id
-            , RefOccurrence
-                rawOccurrence.start
-                rawOccurrence.duration
-                (Id rawOccurrence.locationId)
+                rawEvent.occurrences
             )
     in
     Decode.map2
@@ -220,7 +219,7 @@ type alias RawEvent =
     , name : String
     , teaser : String
     , description : String
-    , occurrences : List RawOccurrence
+    , occurrences : List RefOccurrence
     }
 
 
@@ -232,25 +231,21 @@ decodeRawEvent =
         (Decode.field "name" Decode.string)
         (Decode.field "teaser" Decode.string)
         (Decode.field "description" Decode.string)
-        (Decode.field "occurrences" (Decode.list decodeRawOccurrence))
+        (Decode.field "occurrences" (Decode.list decodeOccurrence))
 
 
-type alias RawOccurrence =
-    { id : String
-    , start : Time.Posix
-    , duration : Int
-    , locationId : String
-    }
-
-
-decodeRawOccurrence : Decode.Decoder RawOccurrence
-decodeRawOccurrence =
-    Decode.map4
-        RawOccurrence
-        (Decode.field "id" Decode.string)
+decodeOccurrence : Decode.Decoder RefOccurrence
+decodeOccurrence =
+    Decode.map3
+        RefOccurrence
         (Decode.field "start" decodePosix)
         (Decode.field "duration" Decode.int)
-        (Decode.field "location" Decode.string)
+        (Decode.field "location" decodeId)
+
+
+decodeId : Decode.Decoder (Id a)
+decodeId =
+    Decode.string |> Decode.map Id
 
 
 decodePosix : Decode.Decoder Time.Posix
@@ -274,3 +269,41 @@ decodeLocation =
         (Decode.field "id" Decode.string)
         (Decode.field "name" Decode.string)
         (Decode.field "address" Decode.string)
+
+
+
+-- Encode
+
+
+encodeEvent : Event -> Encode.Value
+encodeEvent event =
+    Encode.object
+        [ ( "name", Encode.string event.name )
+        , ( "teaser", Encode.string event.teaser )
+        , ( "description", Encode.string event.description )
+        , ( "occurrences", Encode.list encodeOccurrence event.occurrences )
+        ]
+
+
+encodeOccurrence : Occurrence -> Encode.Value
+encodeOccurrence occurrence =
+    let
+        locationId =
+            Tuple.first occurrence.location
+    in
+    Encode.object
+        [ ( "start", encodePosix occurrence.start )
+        , ( "duration", Encode.int occurrence.duration )
+        , ( "location", encodeId locationId )
+        ]
+
+
+encodePosix : Time.Posix -> Encode.Value
+encodePosix time =
+    Time.posixToMillis time
+        |> Encode.int
+
+
+encodeId : Id a -> Encode.Value
+encodeId (Id id) =
+    Encode.string id
