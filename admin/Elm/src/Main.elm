@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Browser
 import Date exposing (Date)
-import Events exposing (Event, EventList, Location, Occurrence, decodeEventList)
+import Events exposing (Event, Events, Location, Occurrence)
 import Html exposing (Html, a, div, h1, h2, li, ol, p, text)
 import Html.Attributes exposing (href)
 import Html.Events exposing (onClick)
@@ -35,32 +35,42 @@ main =
 -- Model
 
 
+{-| The highest level model.
+-}
 type alias AppModel =
     { key : Browser.Key
     , status : AppModelStatus
     }
 
 
+{-| Describes the app startup.
+-}
 type AppModelStatus
     = Loading Route
-    | LoadedEvents Route EventList
+    | LoadedEvents Route Events
     | ErrorLoadingEvents Http.Error
     | LoadedTimezone Route Time.Zone
     | Loaded Model
 
 
+{-| The model for the loaded app.
+-}
 type alias Model =
     { common : Common
     , route : RouteModel
     }
 
 
+{-| Data that is shared between all routes.
+-}
 type alias Common =
     { timezone : Time.Zone
-    , events : EventList
+    , events : Events
     }
 
 
+{-| Each route's model.
+-}
 type RouteModel
     = Overview
     | Event Event
@@ -106,7 +116,7 @@ type AppMsg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | FetchedTimezone Time.Zone
-    | FetchedEvents (Result Http.Error EventList)
+    | FetchedEvents (Result Http.Error Events)
     | SubMsg Msg
 
 
@@ -194,14 +204,14 @@ appUpdate msg model =
                     ( model, Cmd.none )
 
 
-load : Maybe Time.Zone -> Maybe EventList -> AppModel -> AppModel
+load : Maybe Time.Zone -> Maybe Events -> AppModel -> AppModel
 load maybeZone maybeEvents model =
     let
         wrap : AppModelStatus -> AppModel
         wrap status =
             AppModel model.key status
 
-        loaded : Route -> Time.Zone -> EventList -> AppModelStatus
+        loaded : Route -> Time.Zone -> Events -> AppModelStatus
         loaded route zone events =
             let
                 routeModel =
@@ -358,11 +368,31 @@ viewLoaded model =
             viewNotFound
 
 
-viewOverview : Time.Zone -> EventList -> List (Html Msg)
+viewOverview : Time.Zone -> Events -> List (Html Msg)
 viewOverview zone events =
     [ h1 [] [ text "Admin" ]
+    , h2 [] [ text "Veranstaltungen" ]
     , ol []
-        (List.map (\( id, event ) -> li [] [ a [ href <| "event/" ++ Events.stringFromId id ] [ viewEvent zone event ] ]) events)
+        (Events.map
+            (\( id, event ) ->
+                li []
+                    [ a [ href <| "event/" ++ Events.stringFromId id ]
+                        [ viewEvent zone event ]
+                    ]
+            )
+            events
+        )
+    , h2 [] [ text "Orte" ]
+    , ol []
+        (List.map
+            (\( id, location ) ->
+                li []
+                    [ a [ href <| "location/" ++ Events.stringFromId id ]
+                        [ viewLocation location ]
+                    ]
+            )
+            (Events.locations events)
+        )
     ]
 
 
@@ -386,7 +416,7 @@ viewEvent zone event =
             List.length event.occurrences > max
 
         occurrenceListItems =
-            List.map (\( _, occurrence ) -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
+            List.map (\occurrence -> li [] [ viewOccurrence zone occurrence ]) occurrencesPreview
 
         listItems =
             occurrenceListItems
@@ -411,6 +441,13 @@ viewOccurrence zone occurrence =
     in
     div []
         [ text <| stringFromPosix zone occurrence.start ++ " - " ++ location.name ]
+
+
+viewLocation : Location -> Html Msg
+viewLocation location =
+    div []
+        [ text <| location.name ++ " (" ++ location.address ++ ")"
+        ]
 
 
 viewNotFound : List (Html Msg)
