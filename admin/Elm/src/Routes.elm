@@ -6,7 +6,6 @@ import Url.Parser as Parser exposing ((</>), Parser, map, s, string, top)
 
 type Route
     = Overview
-    | Event String
     | NotFound
 
 
@@ -29,5 +28,4 @@ route =
     in
     Parser.oneOf
         [ map Overview root
-        , map Event (root </> s "event" </> string)
         ]
