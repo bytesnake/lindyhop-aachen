@@ -11,13 +11,16 @@ module Pages.EditEvent exposing
     , view
     )
 
-import Events exposing (Event, Events, Id)
-import Html exposing (Html, input, label, p, text, textarea)
+import Events exposing (Event, Events, Id, Location, Occurrence)
+import Html exposing (Html, input, label, li, ol, p, text, textarea)
 import Html.Attributes exposing (type_, value)
 import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
+import List.Extra as List
 import Session exposing (Session)
+import Time
+import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
@@ -78,6 +81,7 @@ type Msg
     = InputName String
     | InputTeaser String
     | InputDescription String
+    | InputOccurrenceDuration Int String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -107,6 +111,29 @@ update msg model =
             in
             ( newModel, Cmd.none )
 
+        InputOccurrenceDuration index rawDuration ->
+            case String.toInt rawDuration of
+                Just newDuration ->
+                    let
+                        updateOccurrence idx map occurrences =
+                            List.updateAt idx map occurrences
+
+                        newModel =
+                            updateEvent model
+                                (\event ->
+                                    { event
+                                        | occurrences =
+                                            updateOccurrence index
+                                                (\occurrence -> { occurrence | duration = newDuration })
+                                                event.occurrences
+                                    }
+                                )
+                    in
+                    ( newModel, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
 
 updateEvent : Model -> (Event -> Event) -> Model
 updateEvent model eventUpdater =
@@ -125,8 +152,34 @@ view model =
     [ viewInputText "Titel" model.event.name InputName
     , viewInputText "Teaser" model.event.teaser InputTeaser
     , viewTextArea "Beschreibung" model.event.description InputDescription
+    , ol []
+        (List.indexedMap
+            (\index occurrence ->
+                li [] (viewEditOccurrence model.session.timezone index occurrence)
+            )
+            model.event.occurrences
+        )
     , p [] [ text <| Encode.encode 2 (Events.encodeEvent model.event) ]
     ]
+
+
+viewEditOccurrence : Time.Zone -> Int -> Occurrence -> List (Html Msg)
+viewEditOccurrence timezone index occurrence =
+    let
+        time =
+            TimeFormat.stringFromPosix timezone occurrence.start
+
+        ( _, location ) =
+            occurrence.location
+    in
+    [ text time
+    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrenceDuration index)
+    , text location.name
+    ]
+
+
+
+-- Utils
 
 
 viewInputText : String -> String -> (String -> Msg) -> Html Msg
@@ -134,6 +187,14 @@ viewInputText lbl val inputMsg =
     label []
         [ text lbl
         , input [ type_ "text", value val, onInput inputMsg ] []
+        ]
+
+
+viewInputNumber : String -> Int -> (String -> Msg) -> Html Msg
+viewInputNumber lbl val inputMsg =
+    label []
+        [ text lbl
+        , input [ type_ "number", value <| String.fromInt val, onInput inputMsg ] []
         ]
 
 
