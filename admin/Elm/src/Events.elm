@@ -2,6 +2,7 @@ module Events exposing
     ( Events, Id, stringFromId, Event, Occurrence, Location
     , fetchEvents
     , map, locations, findEvent
+    , encodeEvent
     )
 
 {-| Fetches, stores, and makes accessible the events from the backend.
@@ -28,8 +29,7 @@ import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
-import Time
-import Utils.SimpleTime exposing (SimpleTime)
+import Utils.NaiveDateTime as Naive exposing (DateTime)
 
 
 {-| Wrapper for ids to prevent mixing of ids from different types at compile time.
@@ -65,7 +65,7 @@ type alias Event =
 
 
 type alias Occurrence =
-    { start : Time.Posix
+    { start : DateTime
     , duration : Int
     , location : Entry Location
     }
@@ -90,7 +90,7 @@ type alias RefEvent =
 
 
 type alias RefOccurrence =
-    { start : Time.Posix
+    { start : DateTime
     , duration : Int
     , locationId : Id Location
     }
@@ -238,7 +238,7 @@ decodeOccurrence : Decode.Decoder RefOccurrence
 decodeOccurrence =
     Decode.map3
         RefOccurrence
-        (Decode.field "start" decodePosix)
+        (Decode.field "start" Naive.decodeDateTime)
         (Decode.field "duration" Decode.int)
         (Decode.field "location" decodeId)
 
@@ -246,14 +246,6 @@ decodeOccurrence =
 decodeId : Decode.Decoder (Id a)
 decodeId =
     Decode.string |> Decode.map Id
-
-
-decodePosix : Decode.Decoder Time.Posix
-decodePosix =
-    Decode.int
-        -- Timestamp in JSON is second-based
-        |> Decode.map (\seconds -> seconds * 1000)
-        |> Decode.map Time.millisToPosix
 
 
 decodeLocation : Decode.Decoder (Entry Location)
@@ -292,16 +284,10 @@ encodeOccurrence occurrence =
             Tuple.first occurrence.location
     in
     Encode.object
-        [ ( "start", encodePosix occurrence.start )
+        [ ( "start", Naive.encodeDateTime occurrence.start )
         , ( "duration", Encode.int occurrence.duration )
         , ( "location", encodeId locationId )
         ]
-
-
-encodePosix : Time.Posix -> Encode.Value
-encodePosix time =
-    Time.posixToMillis time
-        |> Encode.int
 
 
 encodeId : Id a -> Encode.Value

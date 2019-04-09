@@ -5,51 +5,48 @@ module Pages.EditEvent exposing
     , Msg
     , fromEvents
     , init
-    , sessionFromModel
     , update
     , updateLoad
     , view
     )
 
-import Events exposing (Event, Events, Id)
-import Html exposing (Html, input, label, text)
-import Html.Attributes exposing (type_, value)
+import Events exposing (Event, Events, Id, Location, Occurrence)
+import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
+import Html.Attributes exposing (href, type_, value)
 import Html.Events exposing (onInput)
 import Http
-import Session exposing (Session)
+import Json.Encode as Encode
+import List.Extra as List
+import Parser
+import Time
+import Utils.NaiveDateTime as Naive
+import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
-    { session : Session
-    , eventId : Id Event
+    { eventId : Id Event
     , event : Event
     }
 
 
-sessionFromModel : Model -> Session
-sessionFromModel model =
-    model.session
-
-
 type alias LoadModel =
-    { session : Session
-    , rawId : String
+    { rawId : String
     }
 
 
-init : Session -> String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
-init session rawId toMsg =
+init : String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
+init rawId toMsg =
     let
         fetchEvents =
             Events.fetchEvents FetchedEvents
     in
-    ( LoadModel session rawId, Cmd.map toMsg fetchEvents )
+    ( LoadModel rawId, Cmd.map toMsg fetchEvents )
 
 
-fromEvents : Session -> String -> Events -> Maybe Model
-fromEvents session rawId events =
+fromEvents : String -> Events -> Maybe Model
+fromEvents rawId events =
     Events.findEvent rawId events
-        |> Maybe.map (\( id, event ) -> Model session id event)
+        |> Maybe.map (\( id, event ) -> Model id event)
 
 
 type LoadMsg
@@ -68,13 +65,22 @@ updateLoad msg model =
             Result.mapError Http result
                 |> Result.andThen
                     (\events ->
-                        fromEvents model.session model.rawId events
+                        fromEvents model.rawId events
                             |> Result.fromMaybe (InvalidId model.rawId)
                     )
 
 
 type Msg
     = InputName String
+    | InputTeaser String
+    | InputDescription String
+    | InputOccurrence Int OccurrenceMsg
+
+
+type OccurrenceMsg
+    = InputStartDate String
+    | InputStartTime String
+    | InputDuration String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -82,19 +88,163 @@ update msg model =
     case msg of
         InputName newName ->
             let
-                event =
-                    model.event
-
-                newEvent =
-                    { event | name = newName }
+                newModel =
+                    updateEvent model
+                        (\event -> { event | name = newName })
             in
-            ( { model | event = newEvent }, Cmd.none )
+            ( newModel, Cmd.none )
+
+        InputTeaser newTeaser ->
+            let
+                newModel =
+                    updateEvent model
+                        (\event -> { event | teaser = newTeaser })
+            in
+            ( newModel, Cmd.none )
+
+        InputDescription newDescription ->
+            let
+                newModel =
+                    updateEvent model
+                        (\event -> { event | description = newDescription })
+            in
+            ( newModel, Cmd.none )
+
+        InputOccurrence index occurrenceMsg ->
+            let
+                newOccurrences occurrences =
+                    List.updateAt index
+                        (\occurrence ->
+                            case occurrenceMsg of
+                                InputDuration rawDuration ->
+                                    case String.toInt rawDuration of
+                                        Just newDuration ->
+                                            { occurrence | duration = newDuration }
+
+                                        Nothing ->
+                                            occurrence
+
+                                InputStartDate rawDate ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.dateParser rawDate of
+                                                Ok date ->
+                                                    Naive.setDate date occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
+
+                                InputStartTime rawTime ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.timeParser rawTime of
+                                                Ok time ->
+                                                    Naive.setTime time occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
+                        )
+                        occurrences
+
+                newModel =
+                    updateEvent model
+                        (\event ->
+                            { event | occurrences = newOccurrences event.occurrences }
+                        )
+            in
+            ( newModel, Cmd.none )
+
+
+updateEvent : Model -> (Event -> Event) -> Model
+updateEvent model eventUpdater =
+    let
+        event =
+            model.event
+
+        newEvent =
+            eventUpdater event
+    in
+    { model | event = newEvent }
 
 
 view : Model -> List (Html Msg)
 view model =
-    [ label []
-        [ text "Titel"
-        , input [ type_ "text", value model.event.name, onInput InputName ] []
-        ]
+    [ viewInputText "Titel" model.event.name InputName
+    , viewInputText "Teaser" model.event.teaser InputTeaser
+    , viewTextArea "Beschreibung" model.event.description InputDescription
+    , ol []
+        (List.indexedMap
+            (\index occurrence ->
+                li [] (viewEditOccurrence index occurrence)
+            )
+            model.event.occurrences
+        )
+    , p [] [ text <| Encode.encode 2 (Events.encodeEvent model.event) ]
     ]
+
+
+viewEditOccurrence : Int -> Occurrence -> List (Html Msg)
+viewEditOccurrence index occurrence =
+    let
+        time =
+            TimeFormat.time occurrence.start
+
+        ( locationId, location ) =
+            occurrence.location
+    in
+    [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
+    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+    , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
+    ]
+
+
+
+-- Utils
+
+
+viewInputText : String -> String -> (String -> Msg) -> Html Msg
+viewInputText lbl val inputMsg =
+    label []
+        [ text lbl
+        , input [ type_ "text", value val, onInput inputMsg ] []
+        ]
+
+
+viewInputNumber : String -> Int -> (String -> Msg) -> Html Msg
+viewInputNumber lbl val inputMsg =
+    label []
+        [ text lbl
+        , input [ type_ "number", value <| String.fromInt val, onInput inputMsg ] []
+        ]
+
+
+viewTextArea : String -> String -> (String -> Msg) -> Html Msg
+viewTextArea lbl val inputMsg =
+    label []
+        [ text lbl
+        , textarea [ value val, onInput inputMsg ] []
+        ]
+
+
+viewDateTimeInput :
+    String
+    -> Naive.DateTime
+    -> { dateChanged : String -> Msg, timeChanged : String -> Msg }
+    -> Html Msg
+viewDateTimeInput lbl val toMsgs =
+    let
+        date =
+            TimeFormat.dateIso val
+
+        time =
+            TimeFormat.time val
+    in
+    label []
+        [ text lbl
+        , input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
+        , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
+        ]
