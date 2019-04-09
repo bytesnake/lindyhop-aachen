@@ -24,12 +24,16 @@ suite =
                                 { year = Naive.year dateTime
                                 , month = Naive.month dateTime
                                 , day = Naive.day dateTime
+                                , hour = Naive.hour dateTime
+                                , minute = Naive.minute dateTime
                                 }
 
                             expected =
                                 { year = Date.year referenceDate
                                 , month = Date.month referenceDate
                                 , day = Date.day referenceDate
+                                , hour = h
+                                , minute = min
                                 }
                         in
                         Expect.equal expected actual
