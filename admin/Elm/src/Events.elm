@@ -1,8 +1,8 @@
 module Events exposing
     ( Events, Id, stringFromId, Event, Occurrence, Location
     , fetchEvents
-    , map, locations, findEvent
-    , encodeEvent
+    , map, locations, findEvent, findLocation
+    , encodeEvent, encodeLocation
     )
 
 {-| Fetches, stores, and makes accessible the events from the backend.
@@ -20,7 +20,7 @@ module Events exposing
 
 # Access
 
-@docs map, locations, findEvent
+@docs map, locations, findEvent, findLocation
 
 -}
 
@@ -171,6 +171,15 @@ findEvent rawId events =
     List.find (\( currentId, _ ) -> currentId == Id rawId) eventList
 
 
+{-| Extracts a single location by its id.
+-}
+findLocation : String -> Events -> Maybe ( Id Location, Location )
+findLocation rawId (Events locs _) =
+    Dict.toList locs
+        |> List.find (\( currentId, _ ) -> currentId == rawId)
+        |> Maybe.map (Tuple.mapFirst Id)
+
+
 updateEvent : Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
 updateEvent id event toMsg =
     Http.request
@@ -293,3 +302,11 @@ encodeOccurrence occurrence =
 encodeId : Id a -> Encode.Value
 encodeId (Id id) =
     Encode.string id
+
+
+encodeLocation : Location -> Encode.Value
+encodeLocation location =
+    Encode.object
+        [ ( "name", Encode.string location.name )
+        , ( "address", Encode.string location.address )
+        ]

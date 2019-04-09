@@ -9,6 +9,7 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
 import Pages.EditEvent
+import Pages.EditLocation
 import Pages.Overview
 import Routes exposing (Route)
 import Task
@@ -66,11 +67,13 @@ type RouteModel
     | NotFound
     | Overview Pages.Overview.Model
     | EditEvent Pages.EditEvent.Model
+    | EditLocation Pages.EditLocation.Model
 
 
 type RouteLoadModel
     = OverviewLoad Pages.Overview.LoadModel
     | EditEventLoad Pages.EditEvent.LoadModel
+    | EditLocationLoad Pages.EditLocation.LoadModel
 
 
 
@@ -107,6 +110,8 @@ type Msg
     | OverviewLoadMsg Pages.Overview.LoadMsg
     | EditEventLoadMsg Pages.EditEvent.LoadMsg
     | EditEventMsg Pages.EditEvent.Msg
+    | EditLocationLoadMsg Pages.EditLocation.LoadMsg
+    | EditLocationMsg Pages.EditLocation.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -169,6 +174,32 @@ update msg model =
             in
             updateLoaded udpater model
 
+        EditLocationLoadMsg subMsg ->
+            case model of
+                Loading key loaded (EditLocationLoad subModel) ->
+                    case Pages.EditLocation.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (EditLocation newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditLocationMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        EditLocation subModel ->
+                            Pages.EditLocation.update subMsg subModel
+                                |> Tuple.mapBoth EditLocation (Cmd.map EditLocationMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
 
 load : Model -> Route -> ( Model, Cmd Msg )
 load model route =
@@ -181,16 +212,20 @@ load model route =
             ( Loaded key <| NotFound, Cmd.none )
 
         Routes.Overview ->
-            Pages.Overview.init OverviewLoadMsg
-                |> wrapLoadModel model OverviewLoad
+            Pages.Overview.init
+                |> wrapLoadModel model OverviewLoad OverviewLoadMsg
 
         Routes.Event rawId ->
-            Pages.EditEvent.init rawId EditEventLoadMsg
-                |> wrapLoadModel model EditEventLoad
+            Pages.EditEvent.init rawId
+                |> wrapLoadModel model EditEventLoad EditEventLoadMsg
+
+        Routes.Location rawId ->
+            Pages.EditLocation.init rawId
+                |> wrapLoadModel model EditLocationLoad EditLocationLoadMsg
 
 
-wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> ( subModel, Cmd msg ) -> ( Model, Cmd msg )
-wrapLoadModel model wrapper updateTuple =
+wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> (subLoadMsg -> msg) -> ( subModel, Cmd subLoadMsg ) -> ( Model, Cmd msg )
+wrapLoadModel model wrapper loadMsgWrapper updateTuple =
     let
         key =
             keyFromModel model
@@ -198,7 +233,10 @@ wrapLoadModel model wrapper updateTuple =
         loaded =
             loadedFromModel model
     in
-    Tuple.mapFirst (\subModel -> Loading key loaded (wrapper subModel)) updateTuple
+    Tuple.mapBoth
+        (\subModel -> Loading key loaded (wrapper subModel))
+        (Cmd.map loadMsgWrapper)
+        updateTuple
 
 
 updateLoaded : (RouteModel -> ( RouteModel, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
@@ -231,11 +269,14 @@ view model =
 
             Overview subModel ->
                 Pages.Overview.view subModel
-                    |> List.map (Html.map (\_ -> NoOp))
 
             EditEvent subModel ->
                 Pages.EditEvent.view subModel
                     |> List.map (Html.map EditEventMsg)
+
+            EditLocation subModel ->
+                Pages.EditLocation.view subModel
+                    |> List.map (Html.map EditLocationMsg)
     }
 
 

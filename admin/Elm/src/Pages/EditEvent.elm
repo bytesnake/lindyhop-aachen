@@ -17,6 +17,7 @@ import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
+import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
 import Time
 import Utils.NaiveDateTime as Naive
@@ -34,13 +35,13 @@ type alias LoadModel =
     }
 
 
-init : String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
-init rawId toMsg =
+init : String -> ( LoadModel, Cmd LoadMsg )
+init rawId =
     let
         fetchEvents =
             Events.fetchEvents FetchedEvents
     in
-    ( LoadModel rawId, Cmd.map toMsg fetchEvents )
+    ( LoadModel rawId, fetchEvents )
 
 
 fromEvents : String -> Events -> Maybe Model
@@ -200,51 +201,3 @@ viewEditOccurrence index occurrence =
     , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
     , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
     ]
-
-
-
--- Utils
-
-
-viewInputText : String -> String -> (String -> Msg) -> Html Msg
-viewInputText lbl val inputMsg =
-    label []
-        [ text lbl
-        , input [ type_ "text", value val, onInput inputMsg ] []
-        ]
-
-
-viewInputNumber : String -> Int -> (String -> Msg) -> Html Msg
-viewInputNumber lbl val inputMsg =
-    label []
-        [ text lbl
-        , input [ type_ "number", value <| String.fromInt val, onInput inputMsg ] []
-        ]
-
-
-viewTextArea : String -> String -> (String -> Msg) -> Html Msg
-viewTextArea lbl val inputMsg =
-    label []
-        [ text lbl
-        , textarea [ value val, onInput inputMsg ] []
-        ]
-
-
-viewDateTimeInput :
-    String
-    -> Naive.DateTime
-    -> { dateChanged : String -> Msg, timeChanged : String -> Msg }
-    -> Html Msg
-viewDateTimeInput lbl val toMsgs =
-    let
-        date =
-            TimeFormat.dateIso val
-
-        time =
-            TimeFormat.time val
-    in
-    label []
-        [ text lbl
-        , input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
-        , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
-        ]
