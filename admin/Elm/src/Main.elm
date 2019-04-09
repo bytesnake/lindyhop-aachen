@@ -2,6 +2,8 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
+import Css exposing (auto, em, zero)
+import Css.Global as Css
 import Events exposing (Event, Events, Location, Occurrence)
 import Html.Styled as Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
 import Html.Styled.Attributes exposing (href, type_, value)
@@ -277,9 +279,18 @@ view model =
                 EditLocation subModel ->
                     Pages.EditLocation.view subModel
                         |> List.map (Html.map EditLocationMsg)
+
+        mainStyle =
+            Css.global
+                [ Css.selector "body"
+                    [ Css.fontFamily Css.sansSerif
+                    , Css.margin2 zero auto
+                    , Css.maxWidth (em 64)
+                    ]
+                ]
     in
     { title = "Lindy Hop Aachen Admin"
-    , body = List.map Html.toUnstyled styledBody
+    , body = List.map Html.toUnstyled (mainStyle :: styledBody)
     }
 
 
