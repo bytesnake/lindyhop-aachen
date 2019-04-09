@@ -11,7 +11,6 @@ import Json.Decode as Decode
 import Pages.EditEvent
 import Pages.Overview
 import Routes exposing (Route)
-import Session exposing (Session)
 import Task
 import Time
 import Url exposing (Url)
@@ -61,29 +60,10 @@ loadedFromModel model =
             routeModel
 
 
-sessionFromModel : Model -> Maybe Session
-sessionFromModel model =
-    case loadedFromModel model of
-        LoadingRoute ->
-            Nothing
-
-        ErrorLoading ->
-            Nothing
-
-        NotFound session ->
-            Just session
-
-        Overview subModel ->
-            Just (Pages.Overview.sessionFromModel subModel)
-
-        EditEvent subModel ->
-            Just (Pages.EditEvent.sessionFromModel subModel)
-
-
 type RouteModel
     = LoadingRoute
     | ErrorLoading
-    | NotFound Session
+    | NotFound
     | Overview Pages.Overview.Model
     | EditEvent Pages.EditEvent.Model
 
@@ -108,7 +88,7 @@ init flags url key =
 
 initWith : Browser.Key -> Route -> ( Model, Cmd Msg )
 initWith key route =
-    ( Loaded key LoadingRoute, Session.load (LoadedSession route) )
+    load (Loaded key LoadingRoute) route
 
 
 subscriptions : Model -> Sub Msg
@@ -122,7 +102,6 @@ subscriptions model =
 
 type Msg
     = NoOp
-    | LoadedSession Route Session
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | OverviewLoadMsg Pages.Overview.LoadMsg
@@ -135,23 +114,6 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
-
-        LoadedSession route session ->
-            let
-                key =
-                    keyFromModel model
-            in
-            case route of
-                Routes.NotFound ->
-                    ( Loaded key (NotFound session), Cmd.none )
-
-                Routes.Overview ->
-                    Pages.Overview.init session OverviewLoadMsg
-                        |> wrapLoadModel model OverviewLoad
-
-                Routes.Event rawId ->
-                    Pages.EditEvent.init session rawId EditEventLoadMsg
-                        |> wrapLoadModel model EditEventLoad
 
         LinkClicked request ->
             case request of
@@ -166,30 +128,7 @@ update msg model =
                     ( model, Browser.load href )
 
         UrlChanged url ->
-            let
-                key =
-                    keyFromModel model
-            in
-            case sessionFromModel model of
-                Just session ->
-                    case Routes.toRoute url of
-                        Routes.NotFound ->
-                            ( Loaded key <| NotFound session, Cmd.none )
-
-                        Routes.Overview ->
-                            Pages.Overview.init session OverviewLoadMsg
-                                |> wrapLoadModel model OverviewLoad
-
-                        Routes.Event rawId ->
-                            Pages.EditEvent.init session rawId EditEventLoadMsg
-                                |> wrapLoadModel model EditEventLoad
-
-                Nothing ->
-                    let
-                        route =
-                            Routes.toRoute url
-                    in
-                    initWith key route
+            load model (Routes.toRoute url)
 
         OverviewLoadMsg subMsg ->
             case model of
@@ -231,6 +170,25 @@ update msg model =
             updateLoaded udpater model
 
 
+load : Model -> Route -> ( Model, Cmd Msg )
+load model route =
+    let
+        key =
+            keyFromModel model
+    in
+    case route of
+        Routes.NotFound ->
+            ( Loaded key <| NotFound, Cmd.none )
+
+        Routes.Overview ->
+            Pages.Overview.init OverviewLoadMsg
+                |> wrapLoadModel model OverviewLoad
+
+        Routes.Event rawId ->
+            Pages.EditEvent.init rawId EditEventLoadMsg
+                |> wrapLoadModel model EditEventLoad
+
+
 wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> ( subModel, Cmd msg ) -> ( Model, Cmd msg )
 wrapLoadModel model wrapper updateTuple =
     let
@@ -268,7 +226,7 @@ view model =
             ErrorLoading ->
                 viewErrorLoading
 
-            NotFound _ ->
+            NotFound ->
                 viewNotFound
 
             Overview subModel ->

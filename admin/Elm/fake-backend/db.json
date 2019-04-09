@@ -20,13 +20,13 @@
                 "description": "Unter Anleitung werden dir die Grundschritte des Lindy Hops beigebracht.",
                 "occurrences": [
                     {
-                        "start": 1554140700,
+                        "start": "2019-04-01T19:45",
                         "duration": 45,
                         "location": "1"
                     },
                     {
-                        "start": 1554748200,
-                        "duration": 90,
+                        "start": "2019-04-08T19:00",
+                        "duration": 60,
                         "location": "2"
                     }
                 ]
@@ -38,32 +38,32 @@
                 "description": "Hier triffst du viele andere Menschen, die ebenfalls Lust haben, Lindy Hop zu tanzen.",
                 "occurrences": [
                     {
-                        "start": 1554143400,
+                        "start": "2019-04-01T20:30",
                         "duration": 90,
                         "location": "1"
                     },
                     {
-                        "start": 1554748200,
-                        "duration": 90,
+                        "start": "2019-04-08T20:00",
+                        "duration": 60,
                         "location": "2"
                     },
                     {
-                        "start": 1555360200,
+                        "start": "2019-04-15T20:30",
                         "duration": 90,
                         "location": "1"
                     },
                     {
-                        "start": 1555963200,
-                        "duration": 90,
+                        "start": "2019-04-22T20:00",
+                        "duration": 60,
                         "location": "2"
                     },
                     {
-                        "start": 1556569800,
+                        "start": "2019-04-29T20:30",
                         "duration": 90,
                         "location": "1"
                     },
                     {
-                        "start": 1557172800,
+                        "start": "2019-05-06T20:00",
                         "duration": 90,
                         "location": "2"
                     }

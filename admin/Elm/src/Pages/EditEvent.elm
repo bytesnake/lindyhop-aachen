@@ -5,7 +5,6 @@ module Pages.EditEvent exposing
     , Msg
     , fromEvents
     , init
-    , sessionFromModel
     , update
     , updateLoad
     , view
@@ -18,42 +17,36 @@ import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Session exposing (Session)
+import Parser
 import Time
+import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
-    { session : Session
-    , eventId : Id Event
+    { eventId : Id Event
     , event : Event
     }
 
 
-sessionFromModel : Model -> Session
-sessionFromModel model =
-    model.session
-
-
 type alias LoadModel =
-    { session : Session
-    , rawId : String
+    { rawId : String
     }
 
 
-init : Session -> String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
-init session rawId toMsg =
+init : String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
+init rawId toMsg =
     let
         fetchEvents =
             Events.fetchEvents FetchedEvents
     in
-    ( LoadModel session rawId, Cmd.map toMsg fetchEvents )
+    ( LoadModel rawId, Cmd.map toMsg fetchEvents )
 
 
-fromEvents : Session -> String -> Events -> Maybe Model
-fromEvents session rawId events =
+fromEvents : String -> Events -> Maybe Model
+fromEvents rawId events =
     Events.findEvent rawId events
-        |> Maybe.map (\( id, event ) -> Model session id event)
+        |> Maybe.map (\( id, event ) -> Model id event)
 
 
 type LoadMsg
@@ -72,7 +65,7 @@ updateLoad msg model =
             Result.mapError Http result
                 |> Result.andThen
                     (\events ->
-                        fromEvents model.session model.rawId events
+                        fromEvents model.rawId events
                             |> Result.fromMaybe (InvalidId model.rawId)
                     )
 
@@ -85,7 +78,9 @@ type Msg
 
 
 type OccurrenceMsg
-    = InputDuration String
+    = InputStartDate String
+    | InputStartTime String
+    | InputDuration String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -128,6 +123,30 @@ update msg model =
 
                                         Nothing ->
                                             occurrence
+
+                                InputStartDate rawDate ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.dateParser rawDate of
+                                                Ok date ->
+                                                    Naive.setDate date occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
+
+                                InputStartTime rawTime ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.timeParser rawTime of
+                                                Ok time ->
+                                                    Naive.setTime time occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
                         )
                         occurrences
 
@@ -160,7 +179,7 @@ view model =
     , ol []
         (List.indexedMap
             (\index occurrence ->
-                li [] (viewEditOccurrence model.session.timezone index occurrence)
+                li [] (viewEditOccurrence index occurrence)
             )
             model.event.occurrences
         )
@@ -168,16 +187,17 @@ view model =
     ]
 
 
-viewEditOccurrence : Time.Zone -> Int -> Occurrence -> List (Html Msg)
-viewEditOccurrence timezone index occurrence =
+viewEditOccurrence : Int -> Occurrence -> List (Html Msg)
+viewEditOccurrence index occurrence =
     let
         time =
-            TimeFormat.time timezone occurrence.start
+            TimeFormat.time occurrence.start
 
         ( locationId, location ) =
             occurrence.location
     in
-    [ viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+    [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
+    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
     , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
     ]
 
@@ -207,4 +227,24 @@ viewTextArea lbl val inputMsg =
     label []
         [ text lbl
         , textarea [ value val, onInput inputMsg ] []
+        ]
+
+
+viewDateTimeInput :
+    String
+    -> Naive.DateTime
+    -> { dateChanged : String -> Msg, timeChanged : String -> Msg }
+    -> Html Msg
+viewDateTimeInput lbl val toMsgs =
+    let
+        date =
+            TimeFormat.dateIso val
+
+        time =
+            TimeFormat.time val
+    in
+    label []
+        [ text lbl
+        , input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
+        , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
         ]

@@ -1,97 +1,66 @@
-module Utils.TimeFormat exposing (date, fullDate, time)
+module Utils.TimeFormat exposing (date, dateIso, fullDate, time)
 
-import Time
+import Utils.Format exposing (padInt)
+import Utils.NaiveDateTime as Naive
 
 
-fullDate : Time.Zone -> Time.Posix -> String
-fullDate zone posix =
+fullDate : Naive.DateTime -> String
+fullDate dateTime =
     let
         formattedDate =
-            date zone posix
+            date dateTime
 
         formattedTime =
-            time zone posix
+            time dateTime
     in
     formattedDate ++ " " ++ formattedTime
 
 
-date : Time.Zone -> Time.Posix -> String
-date zone posix =
+date : Naive.DateTime -> String
+date dateTime =
     let
         day =
-            Time.toDay zone posix
+            Naive.day dateTime
                 |> padInt
 
         month =
-            Time.toMonth zone posix
-                |> numericFromMonth
+            Naive.monthNumeric dateTime
                 |> padInt
 
         year =
-            Time.toYear zone posix
+            Naive.year dateTime
                 |> String.fromInt
     in
     day ++ "." ++ month ++ "." ++ year
 
 
-numericFromMonth : Time.Month -> Int
-numericFromMonth month =
-    case month of
-        Time.Jan ->
-            1
+dateIso : Naive.DateTime -> String
+dateIso dateTime =
+    let
+        day =
+            Naive.day dateTime
+                |> padInt
 
-        Time.Feb ->
-            2
+        month =
+            Naive.monthNumeric dateTime
+                |> padInt
 
-        Time.Mar ->
-            3
-
-        Time.Apr ->
-            4
-
-        Time.May ->
-            5
-
-        Time.Jun ->
-            6
-
-        Time.Jul ->
-            7
-
-        Time.Aug ->
-            8
-
-        Time.Sep ->
-            9
-
-        Time.Oct ->
-            10
-
-        Time.Nov ->
-            11
-
-        Time.Dec ->
-            12
+        year =
+            Naive.year dateTime
+                |> String.fromInt
+    in
+    year ++ "-" ++ month ++ "-" ++ day
 
 
-time : Time.Zone -> Time.Posix -> String
-time zone posix =
+time : Naive.DateTime -> String
+time dateTime =
     let
         hour =
-            Time.toHour zone posix
+            Naive.hour dateTime
                 |> padInt
 
         minute =
-            Time.toMinute zone posix
+            Naive.minute dateTime
                 |> padInt
     in
     hour ++ ":" ++ minute
-
-
-padInt : Int -> String
-padInt n =
-    if n < 10 then
-        "0" ++ String.fromInt n
-
-    else
-        String.fromInt n
