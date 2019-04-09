@@ -12,8 +12,8 @@ module Pages.EditEvent exposing
     )
 
 import Events exposing (Event, Events, Id, Location, Occurrence)
-import Html exposing (Html, input, label, li, ol, p, text, textarea)
-import Html.Attributes exposing (type_, value)
+import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
+import Html.Attributes exposing (href, type_, value)
 import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
@@ -174,11 +174,11 @@ viewEditOccurrence timezone index occurrence =
         time =
             TimeFormat.stringFromPosix timezone occurrence.start
 
-        ( _, location ) =
+        ( locationId, location ) =
             occurrence.location
     in
     [ viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
-    , text location.name
+    , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
     ]
 
 
