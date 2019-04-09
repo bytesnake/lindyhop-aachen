@@ -1,48 +1,48 @@
 module Utils.TimeFormat exposing (date, fullDate, time)
 
-import Time
 import Utils.Format exposing (padInt)
+import Utils.NaiveDateTime as Naive
 
 
-fullDate : Time.Zone -> Time.Posix -> String
-fullDate zone posix =
+fullDate : Naive.DateTime -> String
+fullDate dateTime =
     let
         formattedDate =
-            date zone posix
+            date dateTime
 
         formattedTime =
-            time zone posix
+            time dateTime
     in
     formattedDate ++ " " ++ formattedTime
 
 
-date : Time.Zone -> Time.Posix -> String
-date zone posix =
+date : Naive.DateTime -> String
+date dateTime =
     let
         day =
-            Time.toDay zone posix
+            Naive.day dateTime
                 |> padInt
 
         month =
-            Time.toMonth zone posix
+            Naive.monthNumeric dateTime
                 |> padInt
 
         year =
-            Time.toYear zone posix
+            Naive.year dateTime
                 |> String.fromInt
     in
     day ++ "." ++ month ++ "." ++ year
 
 
-time : Time.Zone -> Time.Posix -> String
-time zone posix =
+time : Naive.DateTime -> String
+time dateTime =
     let
         hour =
-            Time.toHour zone posix
+            Naive.hour dateTime
                 |> padInt
 
         minute =
-            Time.toMinute zone posix
+            Naive.minute dateTime
                 |> padInt
     in
     hour ++ ":" ++ minute

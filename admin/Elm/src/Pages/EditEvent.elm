@@ -5,7 +5,6 @@ module Pages.EditEvent exposing
     , Msg
     , fromEvents
     , init
-    , sessionFromModel
     , update
     , updateLoad
     , view
@@ -18,42 +17,34 @@ import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Session exposing (Session)
 import Time
 import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
-    { session : Session
-    , eventId : Id Event
+    { eventId : Id Event
     , event : Event
     }
 
 
-sessionFromModel : Model -> Session
-sessionFromModel model =
-    model.session
-
-
 type alias LoadModel =
-    { session : Session
-    , rawId : String
+    { rawId : String
     }
 
 
-init : Session -> String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
-init session rawId toMsg =
+init : String -> (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
+init rawId toMsg =
     let
         fetchEvents =
             Events.fetchEvents FetchedEvents
     in
-    ( LoadModel session rawId, Cmd.map toMsg fetchEvents )
+    ( LoadModel rawId, Cmd.map toMsg fetchEvents )
 
 
-fromEvents : Session -> String -> Events -> Maybe Model
-fromEvents session rawId events =
+fromEvents : String -> Events -> Maybe Model
+fromEvents rawId events =
     Events.findEvent rawId events
-        |> Maybe.map (\( id, event ) -> Model session id event)
+        |> Maybe.map (\( id, event ) -> Model id event)
 
 
 type LoadMsg
@@ -72,7 +63,7 @@ updateLoad msg model =
             Result.mapError Http result
                 |> Result.andThen
                     (\events ->
-                        fromEvents model.session model.rawId events
+                        fromEvents model.rawId events
                             |> Result.fromMaybe (InvalidId model.rawId)
                     )
 
@@ -160,7 +151,7 @@ view model =
     , ol []
         (List.indexedMap
             (\index occurrence ->
-                li [] (viewEditOccurrence model.session.timezone index occurrence)
+                li [] (viewEditOccurrence index occurrence)
             )
             model.event.occurrences
         )
@@ -168,11 +159,11 @@ view model =
     ]
 
 
-viewEditOccurrence : Time.Zone -> Int -> Occurrence -> List (Html Msg)
-viewEditOccurrence timezone index occurrence =
+viewEditOccurrence : Int -> Occurrence -> List (Html Msg)
+viewEditOccurrence index occurrence =
     let
         time =
-            TimeFormat.time timezone occurrence.start
+            TimeFormat.time occurrence.start
 
         ( locationId, location ) =
             occurrence.location
