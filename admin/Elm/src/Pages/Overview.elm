@@ -24,13 +24,13 @@ type alias LoadModel =
     {}
 
 
-init : (LoadMsg -> msg) -> ( LoadModel, Cmd msg )
-init toMsg =
+init : ( LoadModel, Cmd LoadMsg )
+init =
     let
         fetchEvents =
             Events.fetchEvents FetchedEvents
     in
-    ( LoadModel, Cmd.map toMsg fetchEvents )
+    ( LoadModel, fetchEvents )
 
 
 type LoadMsg
