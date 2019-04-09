@@ -282,10 +282,11 @@ view model =
 
         mainStyle =
             Css.global
-                [ Css.selector "body"
+                [ Css.body
                     [ Css.fontFamily Css.sansSerif
                     , Css.margin2 zero auto
                     , Css.maxWidth (em 64)
+                    , Css.padding (em 1.5)
                     ]
                 ]
     in
