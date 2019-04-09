@@ -17,7 +17,7 @@ import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils exposing (fields, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
 import Time
 import Utils.NaiveDateTime as Naive
@@ -110,7 +110,9 @@ updateLocation model locationUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ viewInputText "Bezeichnung" model.location.name InputName
-    , viewTextArea "Adresse" model.location.address InputAddress
+    [ fields
+        [ viewInputText "Bezeichnung" model.location.name InputName
+        , viewTextArea "Adresse" model.location.address InputAddress
+        ]
     , p [] [ text <| Encode.encode 2 (Events.encodeLocation model.location) ]
     ]

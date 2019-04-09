@@ -10,14 +10,16 @@ module Pages.EditEvent exposing
     , view
     )
 
+import Css exposing (em, row, zero)
+import Css.Global as Css
 import Events exposing (Event, Events, Id, Location, Occurrence)
-import Html.Styled exposing (Html, a, input, label, li, ol, p, text, textarea)
-import Html.Styled.Attributes exposing (href, type_, value)
+import Html.Styled exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
+import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
 import Time
 import Utils.NaiveDateTime as Naive
@@ -174,13 +176,16 @@ updateEvent model eventUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ viewInputText "Titel" model.event.name InputName
-    , viewInputText "Teaser" model.event.teaser InputTeaser
-    , viewTextArea "Beschreibung" model.event.description InputDescription
-    , ol []
+    [ fields
+        [ viewInputText "Titel" model.event.name InputName
+        , viewInputText "Teaser" model.event.teaser InputTeaser
+        , viewTextArea "Beschreibung" model.event.description InputDescription
+        ]
+    , h2 [] [ text "Termine" ]
+    , ol [ css [ spreadListItemStyle ] ]
         (List.indexedMap
             (\index occurrence ->
-                li [] (viewEditOccurrence index occurrence)
+                li [] [ viewEditOccurrence index occurrence ]
             )
             model.event.occurrences
         )
@@ -188,7 +193,23 @@ view model =
     ]
 
 
-viewEditOccurrence : Int -> Occurrence -> List (Html Msg)
+spreadListItemStyle : Css.Style
+spreadListItemStyle =
+    Css.batch
+        [ Css.children
+            [ Css.typeSelector "li"
+                [ Css.adjacentSiblings
+                    [ Css.typeSelector
+                        "li"
+                        [ Css.marginTop (em 1)
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+
+viewEditOccurrence : Int -> Occurrence -> Html Msg
 viewEditOccurrence index occurrence =
     let
         time =
@@ -196,8 +217,30 @@ viewEditOccurrence index occurrence =
 
         ( locationId, location ) =
             occurrence.location
+
+        occurrenceStyle =
+            Css.batch
+                [ Css.displayFlex
+                , Css.flexDirection row
+                , Css.children
+                    [ Css.everything
+                        [ Css.adjacentSiblings
+                            [ Css.everything
+                                [ Css.marginLeft (em 1)
+                                ]
+                            ]
+                        , Css.paddingTop zero
+                        , Css.paddingBottom zero
+                        ]
+                    ]
+                ]
     in
-    [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
-    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
-    , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
-    ]
+    div [ css [ occurrenceStyle ] ]
+        [ viewDateTimeInput "Beginn"
+            occurrence.start
+            { dateChanged = InputOccurrence index << InputStartDate
+            , timeChanged = InputOccurrence index << InputStartTime
+            }
+        , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+        , labeled "Ort" [ a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ] ]
+        ]
