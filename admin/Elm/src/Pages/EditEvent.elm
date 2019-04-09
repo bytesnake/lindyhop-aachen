@@ -81,7 +81,11 @@ type Msg
     = InputName String
     | InputTeaser String
     | InputDescription String
-    | InputOccurrenceDuration Int String
+    | InputOccurrence Int OccurrenceMsg
+
+
+type OccurrenceMsg
+    = InputDuration String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -111,28 +115,29 @@ update msg model =
             in
             ( newModel, Cmd.none )
 
-        InputOccurrenceDuration index rawDuration ->
-            case String.toInt rawDuration of
-                Just newDuration ->
-                    let
-                        updateOccurrence idx map occurrences =
-                            List.updateAt idx map occurrences
+        InputOccurrence index occurrenceMsg ->
+            let
+                newOccurrences occurrences =
+                    List.updateAt index
+                        (\occurrence ->
+                            case occurrenceMsg of
+                                InputDuration rawDuration ->
+                                    case String.toInt rawDuration of
+                                        Just newDuration ->
+                                            { occurrence | duration = newDuration }
 
-                        newModel =
-                            updateEvent model
-                                (\event ->
-                                    { event
-                                        | occurrences =
-                                            updateOccurrence index
-                                                (\occurrence -> { occurrence | duration = newDuration })
-                                                event.occurrences
-                                    }
-                                )
-                    in
-                    ( newModel, Cmd.none )
+                                        Nothing ->
+                                            occurrence
+                        )
+                        occurrences
 
-                Nothing ->
-                    ( model, Cmd.none )
+                newModel =
+                    updateEvent model
+                        (\event ->
+                            { event | occurrences = newOccurrences event.occurrences }
+                        )
+            in
+            ( newModel, Cmd.none )
 
 
 updateEvent : Model -> (Event -> Event) -> Model
@@ -172,8 +177,7 @@ viewEditOccurrence timezone index occurrence =
         ( _, location ) =
             occurrence.location
     in
-    [ text time
-    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrenceDuration index)
+    [ viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
     , text location.name
     ]
 
