@@ -11,9 +11,9 @@ module Pages.EditEvent exposing
     )
 
 import Events exposing (Event, Events, Id, Location, Occurrence)
-import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
-import Html.Attributes exposing (href, type_, value)
-import Html.Events exposing (onInput)
+import Html.Styled exposing (Html, a, input, label, li, ol, p, text, textarea)
+import Html.Styled.Attributes exposing (href, type_, value)
+import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List

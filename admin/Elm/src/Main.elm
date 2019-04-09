@@ -3,9 +3,9 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Browser
 import Events exposing (Event, Events, Location, Occurrence)
-import Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
-import Html.Attributes exposing (href, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Styled as Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
+import Html.Styled.Attributes exposing (href, type_, value)
+import Html.Styled.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
 import Pages.EditEvent
@@ -255,28 +255,31 @@ updateLoaded updater model =
 
 view : Model -> Browser.Document Msg
 view model =
+    let
+        styledBody =
+            case loadedFromModel model of
+                LoadingRoute ->
+                    viewLoading
+
+                ErrorLoading ->
+                    viewErrorLoading
+
+                NotFound ->
+                    viewNotFound
+
+                Overview subModel ->
+                    Pages.Overview.view subModel
+
+                EditEvent subModel ->
+                    Pages.EditEvent.view subModel
+                        |> List.map (Html.map EditEventMsg)
+
+                EditLocation subModel ->
+                    Pages.EditLocation.view subModel
+                        |> List.map (Html.map EditLocationMsg)
+    in
     { title = "Lindy Hop Aachen Admin"
-    , body =
-        case loadedFromModel model of
-            LoadingRoute ->
-                viewLoading
-
-            ErrorLoading ->
-                viewErrorLoading
-
-            NotFound ->
-                viewNotFound
-
-            Overview subModel ->
-                Pages.Overview.view subModel
-
-            EditEvent subModel ->
-                Pages.EditEvent.view subModel
-                    |> List.map (Html.map EditEventMsg)
-
-            EditLocation subModel ->
-                Pages.EditLocation.view subModel
-                    |> List.map (Html.map EditLocationMsg)
+    , body = List.map Html.toUnstyled styledBody
     }
 
 

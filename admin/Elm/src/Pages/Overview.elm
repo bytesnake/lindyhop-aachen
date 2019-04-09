@@ -8,8 +8,8 @@ module Pages.Overview exposing
     )
 
 import Events exposing (Event, Events, Location, Occurrence)
-import Html exposing (Html, a, div, h1, h2, li, ol, text)
-import Html.Attributes exposing (href)
+import Html.Styled exposing (Html, a, div, h1, h2, li, ol, text)
+import Html.Styled.Attributes exposing (href)
 import Http
 import Time
 import Utils.TimeFormat as TimeFormat

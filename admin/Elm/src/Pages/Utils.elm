@@ -1,8 +1,8 @@
 module Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 
-import Html exposing (Html, input, label, text, textarea)
-import Html.Attributes exposing (type_, value)
-import Html.Events exposing (onInput)
+import Html.Styled exposing (Html, input, label, text, textarea)
+import Html.Styled.Attributes exposing (type_, value)
+import Html.Styled.Events exposing (onInput)
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
 
