@@ -1,6 +1,7 @@
 module Utils.TimeFormat exposing (date, fullDate, time)
 
 import Time
+import Utils.Format exposing (padInt)
 
 
 fullDate : Time.Zone -> Time.Posix -> String
@@ -24,7 +25,6 @@ date zone posix =
 
         month =
             Time.toMonth zone posix
-                |> numericFromMonth
                 |> padInt
 
         year =
@@ -32,46 +32,6 @@ date zone posix =
                 |> String.fromInt
     in
     day ++ "." ++ month ++ "." ++ year
-
-
-numericFromMonth : Time.Month -> Int
-numericFromMonth month =
-    case month of
-        Time.Jan ->
-            1
-
-        Time.Feb ->
-            2
-
-        Time.Mar ->
-            3
-
-        Time.Apr ->
-            4
-
-        Time.May ->
-            5
-
-        Time.Jun ->
-            6
-
-        Time.Jul ->
-            7
-
-        Time.Aug ->
-            8
-
-        Time.Sep ->
-            9
-
-        Time.Oct ->
-            10
-
-        Time.Nov ->
-            11
-
-        Time.Dec ->
-            12
 
 
 time : Time.Zone -> Time.Posix -> String
@@ -86,12 +46,3 @@ time zone posix =
                 |> padInt
     in
     hour ++ ":" ++ minute
-
-
-padInt : Int -> String
-padInt n =
-    if n < 10 then
-        "0" ++ String.fromInt n
-
-    else
-        String.fromInt n

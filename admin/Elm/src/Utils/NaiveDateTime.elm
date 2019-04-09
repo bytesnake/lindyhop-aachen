@@ -1,8 +1,21 @@
-module Utils.NaiveDateTime exposing (DateTime)
+module Utils.NaiveDateTime exposing
+    ( DateTime
+    , build
+    , day
+    , decodeDateTime
+    , encodeDateTime
+    , hour
+    , minute
+    , month
+    , monthNumeric
+    , year
+    )
 
 import Json.Decode as Decode
-import Parser exposing ((|.), (|=), Parser, succeed)
+import Json.Encode as Encode
+import Parser exposing ((|.), (|=), Parser, end, int, symbol)
 import Time
+import Utils.Format exposing (padInt)
 
 
 type DateTime
@@ -17,37 +30,41 @@ type Time
     = Time { hour : Int, minute : Int }
 
 
+
+-- Create
+
+
 build : { year : Int, month : Int, day : Int, hour : Int, minute : Int } -> Maybe DateTime
-build { year, month, day, hour, minute } =
+build v =
     let
         date =
-            buildDate { year = year, month = month, day = day }
+            buildDate { year = v.year, month = v.month, day = v.day }
 
         time =
-            buildTime { hour = hour, minute = minute }
+            buildTime { hour = v.hour, minute = v.minute }
     in
     Maybe.map2 DateTime date time
 
 
 buildDate : { year : Int, month : Int, day : Int } -> Maybe Date
-buildDate { year, month, day } =
+buildDate v =
     let
         yearResult =
-            if year > 0 then
-                Just year
+            if v.year > 0 then
+                Just v.year
 
             else
                 Nothing
 
         monthResult =
-            monthFromNumber month
+            monthFromNumber v.month
 
         dayResult =
             Maybe.map2 Tuple.pair yearResult monthResult
                 |> Maybe.andThen
                     (\( y, m ) ->
-                        if day > 0 && day < daysInMonth y m then
-                            Just day
+                        if v.day > 0 && v.day <= daysInMonth y m then
+                            Just v.day
 
                         else
                             Nothing
@@ -60,18 +77,18 @@ buildDate { year, month, day } =
 
 
 buildTime : { hour : Int, minute : Int } -> Maybe Time
-buildTime { hour, minute } =
+buildTime v =
     let
         hourResult =
-            if hour >= 0 && hour < 24 then
-                Just hour
+            if v.hour >= 0 && v.hour < 24 then
+                Just v.hour
 
             else
                 Nothing
 
         minuteResult =
-            if minute >= 0 && minute < 60 then
-                Just minute
+            if v.minute >= 0 && v.minute < 60 then
+                Just v.minute
 
             else
                 Nothing
@@ -79,6 +96,105 @@ buildTime { hour, minute } =
     Maybe.map2 (\h m -> Time { hour = h, minute = m })
         hourResult
         minuteResult
+
+
+
+-- Query
+
+
+year : DateTime -> Int
+year (DateTime (Date date) _) =
+    date.year
+
+
+month : DateTime -> Time.Month
+month (DateTime (Date date) _) =
+    date.month
+
+
+monthNumeric : DateTime -> Int
+monthNumeric dateTime =
+    month dateTime
+        |> numberFromMonth
+
+
+day : DateTime -> Int
+day (DateTime (Date date) _) =
+    date.day
+
+
+hour : DateTime -> Int
+hour (DateTime _ (Time time)) =
+    time.hour
+
+
+minute : DateTime -> Int
+minute (DateTime _ (Time time)) =
+    time.minute
+
+
+
+-- JSON
+
+
+decodeDateTime : Decode.Decoder DateTime
+decodeDateTime =
+    Decode.string
+        |> Decode.andThen
+            (\raw ->
+                case Parser.run dateTimeParser raw of
+                    Ok dateTime ->
+                        Decode.succeed dateTime
+
+                    Err error ->
+                        Decode.fail (Parser.deadEndsToString error)
+            )
+
+
+encodeDateTime : DateTime -> Encode.Value
+encodeDateTime dateTime =
+    let
+        y =
+            String.fromInt <| year dateTime
+
+        m =
+            padInt <| monthNumeric dateTime
+
+        d =
+            padInt <| day dateTime
+
+        h =
+            padInt <| hour dateTime
+
+        min =
+            padInt <| minute dateTime
+    in
+    Encode.string
+        (y ++ "-" ++ m ++ "-" ++ d ++ "T" ++ h ++ ":" ++ min)
+
+
+dateTimeParser : Parser DateTime
+dateTimeParser =
+    Parser.succeed
+        (\y m d h min ->
+            { year = y, month = m, day = d, hour = h, minute = min }
+        )
+        |= int
+        |. symbol "-"
+        |= int
+        |. symbol "-"
+        |= int
+        |. symbol "T"
+        |= int
+        |. symbol ":"
+        |= int
+        |. end
+        |> Parser.andThen
+            (\values ->
+                build values
+                    |> Maybe.map Parser.succeed
+                    |> Maybe.withDefault (Parser.problem "The date or time is invalid.")
+            )
 
 
 
@@ -126,6 +242,46 @@ monthFromNumber rawMonth =
 
         _ ->
             Nothing
+
+
+numberFromMonth : Time.Month -> Int
+numberFromMonth m =
+    case m of
+        Time.Jan ->
+            1
+
+        Time.Feb ->
+            2
+
+        Time.Mar ->
+            3
+
+        Time.Apr ->
+            4
+
+        Time.May ->
+            5
+
+        Time.Jun ->
+            6
+
+        Time.Jul ->
+            7
+
+        Time.Aug ->
+            8
+
+        Time.Sep ->
+            9
+
+        Time.Oct ->
+            10
+
+        Time.Nov ->
+            11
+
+        Time.Dec ->
+            12
 
 
 
