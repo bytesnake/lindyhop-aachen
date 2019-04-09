@@ -1,4 +1,4 @@
-module Utils.TimeFormat exposing (date, fullDate, time)
+module Utils.TimeFormat exposing (date, dateIso, fullDate, time)
 
 import Utils.Format exposing (padInt)
 import Utils.NaiveDateTime as Naive
@@ -32,6 +32,24 @@ date dateTime =
                 |> String.fromInt
     in
     day ++ "." ++ month ++ "." ++ year
+
+
+dateIso : Naive.DateTime -> String
+dateIso dateTime =
+    let
+        day =
+            Naive.day dateTime
+                |> padInt
+
+        month =
+            Naive.monthNumeric dateTime
+                |> padInt
+
+        year =
+            Naive.year dateTime
+                |> String.fromInt
+    in
+    year ++ "-" ++ month ++ "-" ++ day
 
 
 time : Naive.DateTime -> String

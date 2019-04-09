@@ -1,7 +1,13 @@
 module Utils.NaiveDateTime exposing
-    ( DateTime
+    ( Date
+    , DateTime
+    , Time
     , build
+    , buildDate
+    , buildTime
+    , dateParser
     , dateTimeFuzzer
+    , dateTimeParser
     , day
     , decodeDateTime
     , encodeDateTime
@@ -9,6 +15,9 @@ module Utils.NaiveDateTime exposing
     , minute
     , month
     , monthNumeric
+    , setDate
+    , setTime
+    , timeParser
     , year
     )
 
@@ -176,6 +185,20 @@ minute (DateTime _ (Time time)) =
 
 
 
+-- Manipulate
+
+
+setDate : Date -> DateTime -> DateTime
+setDate newDate (DateTime _ time) =
+    DateTime newDate time
+
+
+setTime : Time -> DateTime -> DateTime
+setTime newTime (DateTime date _) =
+    DateTime date newTime
+
+
+
 -- JSON
 
 
@@ -235,75 +258,104 @@ encodeDateTime dateTime =
 
 dateTimeParser : Parser DateTime
 dateTimeParser =
-    let
-        paddedInt =
-            Parser.oneOf
-                [ Parser.succeed identity
-                    |. symbol "0"
-                    |= Parser.int
-                , Parser.int
-                ]
-    in
     Parser.succeed
-        (\y m d h min ->
-            { year = y, month = m, day = d, hour = h, minute = min }
+        (\date time ->
+            DateTime date time
         )
+        |= dateParser
+        |. symbol "T"
+        |= timeParser
+        |. end
+
+
+dateParser : Parser Date
+dateParser =
+    Parser.succeed
+        (\y m d -> { year = y, month = m, day = d })
         |= Parser.int
         |. symbol "-"
         |= paddedInt
         |. symbol "-"
         |= paddedInt
-        |. symbol "T"
+        |> Parser.andThen
+            (\values ->
+                case buildDate values of
+                    Ok date ->
+                        Parser.succeed date
+
+                    Err error ->
+                        Parser.problem <| stringFromDateError error
+            )
+
+
+timeParser : Parser Time
+timeParser =
+    Parser.succeed
+        (\h m -> { hour = h, minute = m })
         |= paddedInt
         |. symbol ":"
         |= paddedInt
-        |. end
         |> Parser.andThen
             (\values ->
-                case build values of
-                    Ok dateTime ->
-                        Parser.succeed dateTime
+                case buildTime values of
+                    Ok time ->
+                        Parser.succeed time
 
                     Err error ->
-                        let
-                            stringFromDateError dateError =
-                                case dateError of
-                                    InvalidYear ->
-                                        "The year is invalid."
-
-                                    InvalidMonth ->
-                                        "The month is invalid."
-
-                                    InvalidYearAndMonth ->
-                                        "The year and month are invalid."
-
-                                    InvalidDay ->
-                                        "The day is not valid for that month and year."
-
-                            stringFromTimeError timeError =
-                                case timeError of
-                                    InvalidHour ->
-                                        "The hour is invalid."
-
-                                    InvalidMinute ->
-                                        "The minute is invalid."
-
-                                    InvalidHourAndMinute ->
-                                        "The hour and minute are invalid."
-
-                            stringFromBuildError buildError =
-                                case buildError of
-                                    DateError dateError ->
-                                        stringFromDateError dateError
-
-                                    TimeError timeError ->
-                                        stringFromTimeError timeError
-
-                                    DateAndTimeError dateError timeError ->
-                                        stringFromDateError dateError ++ " " ++ stringFromTimeError timeError
-                        in
-                        Parser.problem <| stringFromBuildError error
+                        Parser.problem <| stringFromTimeError error
             )
+
+
+paddedInt : Parser Int
+paddedInt =
+    Parser.oneOf
+        [ Parser.succeed identity
+            |. symbol "0"
+            |= Parser.int
+        , Parser.int
+        ]
+
+
+stringFromDateError : BuildDateError -> String
+stringFromDateError dateError =
+    case dateError of
+        InvalidYear ->
+            "The year is invalid."
+
+        InvalidMonth ->
+            "The month is invalid."
+
+        InvalidYearAndMonth ->
+            "The year and month are invalid."
+
+        InvalidDay ->
+            "The day is not valid for that month and year."
+
+
+stringFromTimeError : BuildTimeError -> String
+stringFromTimeError timeError =
+    case timeError of
+        InvalidHour ->
+            "The hour is invalid."
+
+        InvalidMinute ->
+            "The minute is invalid."
+
+        InvalidHourAndMinute ->
+            "The hour and minute are invalid."
+
+
+stringFromBuildError : BuildError -> String
+stringFromBuildError buildError =
+    case buildError of
+        DateError dateError ->
+            stringFromDateError dateError
+
+        TimeError timeError ->
+            stringFromTimeError timeError
+
+        DateAndTimeError dateError timeError ->
+            stringFromDateError dateError ++ " " ++ stringFromTimeError timeError
 
 
 

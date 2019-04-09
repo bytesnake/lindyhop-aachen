@@ -17,7 +17,9 @@ import Html.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
+import Parser
 import Time
+import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
 
 
@@ -76,7 +78,9 @@ type Msg
 
 
 type OccurrenceMsg
-    = InputDuration String
+    = InputStartDate String
+    | InputStartTime String
+    | InputDuration String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -119,6 +123,30 @@ update msg model =
 
                                         Nothing ->
                                             occurrence
+
+                                InputStartDate rawDate ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.dateParser rawDate of
+                                                Ok date ->
+                                                    Naive.setDate date occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
+
+                                InputStartTime rawTime ->
+                                    let
+                                        newStart =
+                                            case Parser.run Naive.timeParser rawTime of
+                                                Ok time ->
+                                                    Naive.setTime time occurrence.start
+
+                                                Err _ ->
+                                                    occurrence.start
+                                    in
+                                    { occurrence | start = newStart }
                         )
                         occurrences
 
@@ -168,7 +196,8 @@ viewEditOccurrence index occurrence =
         ( locationId, location ) =
             occurrence.location
     in
-    [ viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+    [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
+    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
     , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
     ]
 
@@ -198,4 +227,24 @@ viewTextArea lbl val inputMsg =
     label []
         [ text lbl
         , textarea [ value val, onInput inputMsg ] []
+        ]
+
+
+viewDateTimeInput :
+    String
+    -> Naive.DateTime
+    -> { dateChanged : String -> Msg, timeChanged : String -> Msg }
+    -> Html Msg
+viewDateTimeInput lbl val toMsgs =
+    let
+        date =
+            TimeFormat.dateIso val
+
+        time =
+            TimeFormat.time val
+    in
+    label []
+        [ text lbl
+        , input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
+        , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
         ]
