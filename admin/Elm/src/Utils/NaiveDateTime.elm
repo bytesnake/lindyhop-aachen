@@ -1,6 +1,7 @@
 module Utils.NaiveDateTime exposing
     ( DateTime
     , build
+    , dateTimeFuzzer
     , day
     , decodeDateTime
     , encodeDateTime
@@ -11,9 +12,10 @@ module Utils.NaiveDateTime exposing
     , year
     )
 
+import Fuzz
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Parser exposing ((|.), (|=), Parser, end, int, symbol)
+import Parser exposing ((|.), (|=), Parser, end, symbol)
 import Time
 import Utils.Format exposing (padInt)
 
@@ -34,7 +36,13 @@ type Time
 -- Create
 
 
-build : { year : Int, month : Int, day : Int, hour : Int, minute : Int } -> Maybe DateTime
+type BuildError
+    = DateError BuildDateError
+    | TimeError BuildTimeError
+    | DateAndTimeError BuildDateError BuildTimeError
+
+
+build : { year : Int, month : Int, day : Int, hour : Int, minute : Int } -> Result BuildError DateTime
 build v =
     let
         date =
@@ -43,10 +51,28 @@ build v =
         time =
             buildTime { hour = v.hour, minute = v.minute }
     in
-    Maybe.map2 DateTime date time
+    case ( date, time ) of
+        ( Ok d, Ok t ) ->
+            Ok <| DateTime d t
+
+        ( Err dateError, Ok _ ) ->
+            Err <| DateError dateError
+
+        ( Ok _, Err timeError ) ->
+            Err <| TimeError timeError
+
+        ( Err dateError, Err timeError ) ->
+            Err <| DateAndTimeError dateError timeError
 
 
-buildDate : { year : Int, month : Int, day : Int } -> Maybe Date
+type BuildDateError
+    = InvalidYear
+    | InvalidMonth
+    | InvalidYearAndMonth
+    | InvalidDay
+
+
+buildDate : { year : Int, month : Int, day : Int } -> Result BuildDateError Date
 buildDate v =
     let
         yearResult =
@@ -58,25 +84,32 @@ buildDate v =
 
         monthResult =
             monthFromNumber v.month
-
-        dayResult =
-            Maybe.map2 Tuple.pair yearResult monthResult
-                |> Maybe.andThen
-                    (\( y, m ) ->
-                        if v.day > 0 && v.day <= daysInMonth y m then
-                            Just v.day
-
-                        else
-                            Nothing
-                    )
     in
-    Maybe.map3 (\y m d -> Date { year = y, month = m, day = d })
-        yearResult
-        monthResult
-        dayResult
+    case ( yearResult, monthResult ) of
+        ( Just y, Just m ) ->
+            if v.day > 0 && v.day <= daysInMonth y m then
+                Ok <| Date { year = y, month = m, day = v.day }
+
+            else
+                Err InvalidDay
+
+        ( Nothing, Just _ ) ->
+            Err InvalidYear
+
+        ( Just _, Nothing ) ->
+            Err InvalidMonth
+
+        ( Nothing, Nothing ) ->
+            Err InvalidYearAndMonth
 
 
-buildTime : { hour : Int, minute : Int } -> Maybe Time
+type BuildTimeError
+    = InvalidHour
+    | InvalidMinute
+    | InvalidHourAndMinute
+
+
+buildTime : { hour : Int, minute : Int } -> Result BuildTimeError Time
 buildTime v =
     let
         hourResult =
@@ -93,9 +126,18 @@ buildTime v =
             else
                 Nothing
     in
-    Maybe.map2 (\h m -> Time { hour = h, minute = m })
-        hourResult
-        minuteResult
+    case ( hourResult, minuteResult ) of
+        ( Just h, Just m ) ->
+            Ok <| Time { hour = h, minute = m }
+
+        ( Just _, Nothing ) ->
+            Err InvalidHour
+
+        ( Nothing, Just _ ) ->
+            Err InvalidMinute
+
+        ( Nothing, Nothing ) ->
+            Err InvalidHourAndMinute
 
 
 
@@ -147,7 +189,25 @@ decodeDateTime =
                         Decode.succeed dateTime
 
                     Err error ->
-                        Decode.fail (Parser.deadEndsToString error)
+                        let
+                            stringFromDeadEnd deadEnd =
+                                case deadEnd.problem of
+                                    Parser.Problem prob ->
+                                        prob
+
+                                    Parser.ExpectingSymbol symbol ->
+                                        "Expected symbol '"
+                                            ++ symbol
+                                            ++ "' at row "
+                                            ++ String.fromInt deadEnd.row
+                                            ++ ", column "
+                                            ++ String.fromInt deadEnd.col
+                                            ++ "."
+
+                                    _ ->
+                                        "The value could not be parsed."
+                        in
+                        Decode.fail (List.map stringFromDeadEnd error |> String.join "\n")
             )
 
 
@@ -175,26 +235,101 @@ encodeDateTime dateTime =
 
 dateTimeParser : Parser DateTime
 dateTimeParser =
+    let
+        paddedInt =
+            Parser.oneOf
+                [ Parser.succeed identity
+                    |. symbol "0"
+                    |= Parser.int
+                , Parser.int
+                ]
+    in
     Parser.succeed
         (\y m d h min ->
             { year = y, month = m, day = d, hour = h, minute = min }
         )
-        |= int
+        |= Parser.int
         |. symbol "-"
-        |= int
+        |= paddedInt
         |. symbol "-"
-        |= int
+        |= paddedInt
         |. symbol "T"
-        |= int
+        |= paddedInt
         |. symbol ":"
-        |= int
+        |= paddedInt
         |. end
         |> Parser.andThen
             (\values ->
-                build values
-                    |> Maybe.map Parser.succeed
-                    |> Maybe.withDefault (Parser.problem "The date or time is invalid.")
+                case build values of
+                    Ok dateTime ->
+                        Parser.succeed dateTime
+
+                    Err error ->
+                        let
+                            stringFromDateError dateError =
+                                case dateError of
+                                    InvalidYear ->
+                                        "The year is invalid."
+
+                                    InvalidMonth ->
+                                        "The month is invalid."
+
+                                    InvalidYearAndMonth ->
+                                        "The year and month are invalid."
+
+                                    InvalidDay ->
+                                        "The day is not valid for that month and year."
+
+                            stringFromTimeError timeError =
+                                case timeError of
+                                    InvalidHour ->
+                                        "The hour is invalid."
+
+                                    InvalidMinute ->
+                                        "The minute is invalid."
+
+                                    InvalidHourAndMinute ->
+                                        "The hour and minute are invalid."
+
+                            stringFromBuildError buildError =
+                                case buildError of
+                                    DateError dateError ->
+                                        stringFromDateError dateError
+
+                                    TimeError timeError ->
+                                        stringFromTimeError timeError
+
+                                    DateAndTimeError dateError timeError ->
+                                        stringFromDateError dateError ++ " " ++ stringFromTimeError timeError
+                        in
+                        Parser.problem <| stringFromBuildError error
             )
+
+
+
+-- Testing
+
+
+dateTimeFuzzer : Fuzz.Fuzzer DateTime
+dateTimeFuzzer =
+    Fuzz.map5
+        (\y m d h minute_ ->
+            let
+                validMonth =
+                    monthFromNumber m |> Maybe.withDefault Time.Jan
+
+                validDay =
+                    min d (daysInMonth y validMonth)
+            in
+            DateTime
+                (Date { year = y, month = validMonth, day = validDay })
+                (Time { hour = h, minute = minute_ })
+        )
+        (Fuzz.intRange 1 3000)
+        (Fuzz.intRange 1 12)
+        (Fuzz.intRange 1 31)
+        (Fuzz.intRange 0 23)
+        (Fuzz.intRange 0 59)
 
 
 
