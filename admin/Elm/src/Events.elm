@@ -2,7 +2,7 @@ module Events exposing
     ( Events, Id, stringFromId, Event, Occurrence, Location
     , fetchEvents
     , map, locations, findEvent, findLocation
-    , encodeEvent
+    , encodeEvent, encodeLocation
     )
 
 {-| Fetches, stores, and makes accessible the events from the backend.
@@ -302,3 +302,11 @@ encodeOccurrence occurrence =
 encodeId : Id a -> Encode.Value
 encodeId (Id id) =
     Encode.string id
+
+
+encodeLocation : Location -> Encode.Value
+encodeLocation location =
+    Encode.object
+        [ ( "name", Encode.string location.name )
+        , ( "address", Encode.string location.address )
+        ]

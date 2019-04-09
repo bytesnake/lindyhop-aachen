@@ -73,6 +73,7 @@ updateLoad msg model =
 
 type Msg
     = InputName String
+    | InputAddress String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -83,6 +84,14 @@ update msg model =
                 newModel =
                     updateLocation model
                         (\location -> { location | name = newName })
+            in
+            ( newModel, Cmd.none )
+
+        InputAddress newAddress ->
+            let
+                newModel =
+                    updateLocation model
+                        (\location -> { location | address = newAddress })
             in
             ( newModel, Cmd.none )
 
@@ -102,4 +111,6 @@ updateLocation model locationUpdater =
 view : Model -> List (Html Msg)
 view model =
     [ viewInputText "Bezeichnung" model.location.name InputName
+    , viewTextArea "Adresse" model.location.address InputAddress
+    , p [] [ text <| Encode.encode 2 (Events.encodeLocation model.location) ]
     ]
