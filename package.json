@@ -1,0 +1,7 @@
+{
+    "private": true,
+    "scripts": {
+        "install": "(cd admin/Elm && yarn install)",
+        "test": "(cd admin/Elm && yarn test)"
+    }
+}
