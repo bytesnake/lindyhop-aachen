@@ -2,7 +2,6 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
-import Date exposing (Date)
 import Events exposing (Event, Events, Location, Occurrence)
 import Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
 import Html.Attributes exposing (href, type_, value)
@@ -16,7 +15,6 @@ import Session exposing (Session)
 import Task
 import Time
 import Url exposing (Url)
-import Utils.SimpleTime as SimpleTime exposing (SimpleTime)
 
 
 

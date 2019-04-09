@@ -30,7 +30,6 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
 import Time
-import Utils.SimpleTime exposing (SimpleTime)
 
 
 {-| Wrapper for ids to prevent mixing of ids from different types at compile time.

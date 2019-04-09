@@ -117,7 +117,7 @@ viewOccurrence zone occurrence =
             Tuple.second occurrence.location
     in
     div []
-        [ text <| TimeFormat.stringFromPosix zone occurrence.start ++ " - " ++ location.name ]
+        [ text <| TimeFormat.fullDate zone occurrence.start ++ " - " ++ location.name ]
 
 
 viewLocation : Location -> Html msg

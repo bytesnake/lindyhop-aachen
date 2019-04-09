@@ -172,7 +172,7 @@ viewEditOccurrence : Time.Zone -> Int -> Occurrence -> List (Html Msg)
 viewEditOccurrence timezone index occurrence =
     let
         time =
-            TimeFormat.stringFromPosix timezone occurrence.start
+            TimeFormat.time timezone occurrence.start
 
         ( locationId, location ) =
             occurrence.location

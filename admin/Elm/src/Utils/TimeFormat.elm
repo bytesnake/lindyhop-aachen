@@ -1,51 +1,88 @@
-module Utils.TimeFormat exposing (stringFromDate, stringFromPosix, stringFromSimpleTime)
+module Utils.TimeFormat exposing (date, fullDate, time)
 
-import Date exposing (Date)
 import Time
-import Utils.SimpleTime as SimpleTime exposing (SimpleTime)
 
 
-stringFromPosix : Time.Zone -> Time.Posix -> String
-stringFromPosix zone posix =
+fullDate : Time.Zone -> Time.Posix -> String
+fullDate zone posix =
     let
-        date =
-            Date.fromPosix zone posix
-                |> stringFromDate
+        formattedDate =
+            date zone posix
 
-        time =
-            SimpleTime.fromPosix zone posix
-                |> stringFromSimpleTime
+        formattedTime =
+            time zone posix
     in
-    date ++ " " ++ time
+    formattedDate ++ " " ++ formattedTime
 
 
-stringFromDate : Date -> String
-stringFromDate date =
+date : Time.Zone -> Time.Posix -> String
+date zone posix =
     let
         day =
-            Date.day date
+            Time.toDay zone posix
                 |> padInt
 
         month =
-            Date.monthNumber date
+            Time.toMonth zone posix
+                |> numericFromMonth
                 |> padInt
 
         year =
-            Date.year date
+            Time.toYear zone posix
                 |> String.fromInt
     in
     day ++ "." ++ month ++ "." ++ year
 
 
-stringFromSimpleTime : SimpleTime -> String
-stringFromSimpleTime time =
+numericFromMonth : Time.Month -> Int
+numericFromMonth month =
+    case month of
+        Time.Jan ->
+            1
+
+        Time.Feb ->
+            2
+
+        Time.Mar ->
+            3
+
+        Time.Apr ->
+            4
+
+        Time.May ->
+            5
+
+        Time.Jun ->
+            6
+
+        Time.Jul ->
+            7
+
+        Time.Aug ->
+            8
+
+        Time.Sep ->
+            9
+
+        Time.Oct ->
+            10
+
+        Time.Nov ->
+            11
+
+        Time.Dec ->
+            12
+
+
+time : Time.Zone -> Time.Posix -> String
+time zone posix =
     let
         hour =
-            SimpleTime.hour time
+            Time.toHour zone posix
                 |> padInt
 
         minute =
-            SimpleTime.minute time
+            Time.toMinute zone posix
                 |> padInt
     in
     hour ++ ":" ++ minute
