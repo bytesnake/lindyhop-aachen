@@ -1,4 +1,4 @@
-module Routes exposing (Route(..), toRelativeUrl, toRoute)
+module Routes exposing (Route(..), routeName, toRelativeUrl, toRoute)
 
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, map, s, string, top)
@@ -34,6 +34,22 @@ toRelativeUrl route =
                     []
     in
     "/" ++ String.join "/" (root ++ parts)
+
+
+routeName : Route -> String
+routeName route =
+    case route of
+        Overview ->
+            "Admin"
+
+        Event id ->
+            "Event"
+
+        Location id ->
+            "Location"
+
+        NotFound ->
+            "Not found"
 
 
 root : List String

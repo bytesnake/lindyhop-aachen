@@ -19,7 +19,7 @@ import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils as Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
 import Routes
 import Time
@@ -177,7 +177,8 @@ updateEvent model eventUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ fields
+    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Event <| Events.stringFromId model.eventId)
+    , fields
         [ viewInputText "Titel" model.event.name InputName
         , viewInputText "Teaser" model.event.teaser InputTeaser
         , viewTextArea "Beschreibung" model.event.description InputDescription

@@ -17,8 +17,9 @@ import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (fields, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils as Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
+import Routes
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -110,7 +111,8 @@ updateLocation model locationUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ fields
+    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Location <| Events.stringFromId model.locationId)
+    , Utils.fields
         [ viewInputText "Bezeichnung" model.location.name InputName
         , viewTextArea "Adresse" model.location.address InputAddress
         ]
