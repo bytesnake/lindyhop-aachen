@@ -11,14 +11,15 @@ module Pages.EditLocation exposing
     )
 
 import Events exposing (Event, Events, Id, Location, Occurrence)
-import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
-import Html.Attributes exposing (href, type_, value)
-import Html.Events exposing (onInput)
+import Html.Styled exposing (Html, a, input, label, li, ol, p, text, textarea)
+import Html.Styled.Attributes exposing (href, type_, value)
+import Html.Styled.Events exposing (onInput)
 import Http
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils as Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
+import Routes
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -110,7 +111,10 @@ updateLocation model locationUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ viewInputText "Bezeichnung" model.location.name InputName
-    , viewTextArea "Adresse" model.location.address InputAddress
+    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Location <| Events.stringFromId model.locationId)
+    , Utils.fields
+        [ viewInputText "Bezeichnung" model.location.name InputName
+        , viewTextArea "Adresse" model.location.address InputAddress
+        ]
     , p [] [ text <| Encode.encode 2 (Events.encodeLocation model.location) ]
     ]

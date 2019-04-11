@@ -1,4 +1,4 @@
-module NaiveDateTime exposing (suite)
+module TestNaiveDateTime exposing (suite)
 
 import Date
 import Expect exposing (Expectation)
