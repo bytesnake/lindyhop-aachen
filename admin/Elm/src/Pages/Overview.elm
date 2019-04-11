@@ -13,6 +13,7 @@ import Events exposing (Event, Events, Location, Occurrence)
 import Html.Styled exposing (Html, a, div, h1, h2, li, ol, text)
 import Html.Styled.Attributes exposing (css, href)
 import Http
+import Routes
 import Time
 import Utils.TimeFormat as TimeFormat
 
@@ -54,7 +55,7 @@ view model =
         (Events.map
             (\( id, event ) ->
                 li []
-                    [ a [ href <| "event/" ++ Events.stringFromId id, css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.Event <| Events.stringFromId id), css [ hiddenLinkStyle ] ]
                         [ viewEvent event ]
                     ]
             )
@@ -65,7 +66,7 @@ view model =
         (List.map
             (\( id, location ) ->
                 li []
-                    [ a [ href <| "location/" ++ Events.stringFromId id, css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.Location <| Events.stringFromId id), css [ hiddenLinkStyle ] ]
                         [ viewLocation location ]
                     ]
             )

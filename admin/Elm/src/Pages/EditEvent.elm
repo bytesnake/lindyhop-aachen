@@ -21,6 +21,7 @@ import Json.Encode as Encode
 import List.Extra as List
 import Pages.Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
+import Routes
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -242,5 +243,5 @@ viewEditOccurrence index occurrence =
             , timeChanged = InputOccurrence index << InputStartTime
             }
         , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
-        , labeled "Ort" [ a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ] ]
+        , labeled "Ort" [ a [ href (Routes.toRelativeUrl <| Routes.Location <| Events.stringFromId locationId) ] [ text location.name ] ]
         ]

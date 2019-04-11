@@ -1,4 +1,4 @@
-module Routes exposing (Route(..), toRoute)
+module Routes exposing (Route(..), toRelativeUrl, toRoute)
 
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, map, s, string, top)
@@ -13,23 +13,43 @@ type Route
 
 toRoute : Url -> Route
 toRoute url =
-    Maybe.withDefault NotFound (Parser.parse route url)
+    Maybe.withDefault NotFound (Parser.parse routeParser url)
 
 
-pathPrefix : List String
-pathPrefix =
+toRelativeUrl : Route -> String
+toRelativeUrl route =
+    let
+        parts =
+            case route of
+                Overview ->
+                    []
+
+                Event id ->
+                    [ "event", id ]
+
+                Location id ->
+                    [ "location", id ]
+
+                NotFound ->
+                    []
+    in
+    "/" ++ String.join "/" (root ++ parts)
+
+
+root : List String
+root =
     [ "admin" ]
 
 
-route : Parser (Route -> a) a
-route =
+routeParser : Parser (Route -> a) a
+routeParser =
     let
-        root =
-            List.map s pathPrefix
+        rootUrl =
+            List.map s root
                 |> List.foldl (\next currentPath -> currentPath </> next) top
     in
     Parser.oneOf
-        [ map Overview root
-        , map Event (root </> s "event" </> string)
-        , map Location (root </> s "location" </> string)
+        [ map Overview rootUrl
+        , map Event (rootUrl </> s "event" </> string)
+        , map Location (rootUrl </> s "location" </> string)
         ]
