@@ -1,29 +1,83 @@
+use std::collections::HashMap;
+use std::marker::PhantomData;
+
 use chrono::prelude::*;
-
-use chrono::serde::ts_seconds;
-
 use serde::Serialize;
 
-#[derive(Serialize)]
-pub struct Event<'a> {
-    pub name: &'a str,
-    pub teaser: &'a str,
-    pub description: &'a str,
-    pub occurrences: Vec<Occurrence<'a>>,
+#[derive(Serialize, Clone)]
+pub struct Event {
+    pub name: String,
+    pub teaser: String,
+    pub description: String,
+    pub occurrences: Vec<Occurrence>,
 }
 
-#[derive(Serialize)]
-pub struct Occurrence<'a> {
-    #[serde(with = "ts_seconds")]
-    pub start: DateTime<Utc>,
+#[derive(Serialize, Clone)]
+pub struct Occurrence {
+    pub start: NaiveDateTime,
     pub duration: Duration,
-    pub location: &'a Location<'a>,
+    pub location_id: Id<Location>,
 }
 
 type Duration = u64;
 
+#[derive(Serialize, Clone)]
+pub struct Location {
+    pub name: String,
+    pub address: String,
+}
+
 #[derive(Serialize)]
-pub struct Location<'a> {
-    pub name: &'a str,
-    pub address: &'a str,
+pub struct Id<T>(usize, PhantomData<T>);
+
+impl<T> PartialEq for Id<T> {
+    fn eq(&self, other: &Id<T>) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T> Eq for Id<T> {}
+
+impl<T> Clone for Id<T> {
+    fn clone(&self) -> Self {
+        Id(self.0.clone(), PhantomData)
+    }
+}
+
+impl<T> std::hash::Hash for Id<T> {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.0.hash(state)
+    }
+}
+
+pub struct Store {
+    pub locations: IdMap<Location>,
+    pub events: IdMap<Event>,
+}
+
+pub struct IdMap<I>(HashMap<Id<I>, I>);
+
+impl<I> IdMap<I> {
+    pub fn new() -> IdMap<I> {
+        IdMap(HashMap::new())
+    }
+
+    pub fn insert(&mut self, item: I) -> Id<I> {
+        let id = Id(self.0.len(), PhantomData);
+        let id_clone = id.clone();
+        self.0.insert(id, item);
+
+        id_clone
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &I> {
+        self.0.values()
+    }
+
+    pub fn get(&self, id: &Id<I>) -> &I {
+        self.0.get(&id).expect("The location id was invalid.")
+    }
 }
