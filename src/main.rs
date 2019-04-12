@@ -8,6 +8,7 @@ extern crate rocket;
 use chrono::prelude::*;
 use maud::{html, Markup};
 use rocket::State;
+use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
 use events::{Event, Location, Locations, Occurrence};
@@ -39,6 +40,11 @@ fn render_occurrence(occurrence: &Occurrence, locations: &Locations) -> Markup {
     html! {
         (occurrence.start.format("%d.%m.%Y %H:%M")) " - " (locations.get(&occurrence.location_id).name)
     }
+}
+
+#[get("/api/events")]
+fn all_events(store: State<events::Store>) -> Json<&events::Store> {
+    Json(store.inner())
 }
 
 fn main() {
@@ -95,6 +101,6 @@ fn main() {
             let path = concat!(env!("CARGO_MANIFEST_DIR"), "/admin/dist");
             StaticFiles::from(path)
         })
-        .mount("/", routes![index])
+        .mount("/", routes![index, all_events])
         .launch();
 }

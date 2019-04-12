@@ -28,6 +28,7 @@ pub struct Location {
     pub address: String,
 }
 
+#[derive(Serialize)]
 pub struct Store {
     pub locations: IdMap<Location>,
     pub events: IdMap<Event>,
