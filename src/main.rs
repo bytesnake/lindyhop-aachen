@@ -1,18 +1,16 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 mod events;
+mod id_map;
 
 #[macro_use]
 extern crate rocket;
+use chrono::prelude::*;
+use maud::{html, Markup};
 use rocket::State;
-
 use rocket_contrib::serve::StaticFiles;
 
-use events::{Event, Location, Occurrence};
-
-use chrono::prelude::*;
-
-use maud::{html, Markup};
+use events::{Event, Location, Locations, Occurrence};
 
 #[get("/")]
 fn index(store: State<events::Store>) -> Markup {
@@ -26,7 +24,7 @@ fn index(store: State<events::Store>) -> Markup {
     }
 }
 
-fn render_event(event: &Event, locations: &events::IdMap<Location>) -> Markup {
+fn render_event(event: &Event, locations: &Locations) -> Markup {
     html! {
         (event.name) " - " (event.teaser)
         ol {
@@ -37,14 +35,14 @@ fn render_event(event: &Event, locations: &events::IdMap<Location>) -> Markup {
     }
 }
 
-fn render_occurrence(occurrence: &Occurrence, locations: &events::IdMap<Location>) -> Markup {
+fn render_occurrence(occurrence: &Occurrence, locations: &Locations) -> Markup {
     html! {
         (occurrence.start.format("%d.%m.%Y %H:%M")) " - " (locations.get(&occurrence.location_id).name)
     }
 }
 
 fn main() {
-    let mut locations = events::IdMap::new();
+    let mut locations = events::Locations::new();
     let chico_id = locations.insert(Location {
         name: "Chico Mendès".to_string(),
         address: "Aachen".to_string(),
@@ -54,7 +52,7 @@ fn main() {
         address: "Aachen".to_string(),
     });
 
-    let mut events = events::IdMap::new();
+    let mut events = events::Events::new();
     events.insert(Event {
         name: "Social Dance".to_string(),
         teaser: "Einfach tanzen.".to_string(),
