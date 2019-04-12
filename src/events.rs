@@ -1,11 +1,11 @@
 use chrono::prelude::*;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use super::id_map::{Id, IdMap};
 
 // Types
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize,Deserialize, Clone)]
 pub struct Event {
     pub name: String,
     pub teaser: String,
@@ -13,7 +13,7 @@ pub struct Event {
     pub occurrences: Vec<Occurrence>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize,Deserialize, Clone)]
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
@@ -22,13 +22,13 @@ pub struct Occurrence {
 
 type Duration = u64;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize,Deserialize, Clone)]
 pub struct Location {
     pub name: String,
     pub address: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize)]
 pub struct Store {
     pub locations: IdMap<Location>,
     pub events: IdMap<Event>,

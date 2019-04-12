@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct IdMap<I>(HashMap<Id<I>, I>);
 
 impl<I> IdMap<I> {
@@ -32,7 +32,7 @@ impl<I> IdMap<I> {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Id<T> {
     raw: Uuid,
