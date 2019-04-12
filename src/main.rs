@@ -18,7 +18,7 @@ fn index(store: State<events::Store>) -> Markup {
     html! {
         h1 { "Lindy Hop Aachen" }
         ol {
-            @for event in store.events.iter() {
+            @for event in store.events.values() {
                 li { ( render_event(event, &store.locations) ) }
             }
         }

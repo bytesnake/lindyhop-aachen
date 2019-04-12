@@ -23,7 +23,7 @@ impl<I> IdMap<I> {
         id_clone
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &I> {
+    pub fn values(&self) -> impl Iterator<Item = &I> {
         self.0.values()
     }
 
