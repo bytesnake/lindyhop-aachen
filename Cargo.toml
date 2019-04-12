@@ -6,8 +6,9 @@ edition = "2018"
 
 [dependencies]
 rocket = "0.4.0"
-rocket_contrib = "0.4.0"
+rocket_contrib = { version = "0.4.0", features = ["uuid"] }
 maud = { version = "0.20.0", features = ["rocket"] }
 serde = { version = "1.0.89", features = ["derive"] }
+serde_json = "1.0.39"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "0.7", features = ["serde", "v4"] }

@@ -4,23 +4,23 @@ use std::marker::PhantomData;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
-pub struct IdMap<I>(HashMap<Id<I>, I>);
+#[derive(Serialize, Deserialize, Clone)]
+pub struct IdMap<I>(HashMap<UnsafeId, I>);
 
 impl<I> IdMap<I> {
     pub fn new() -> IdMap<I> {
         IdMap(HashMap::new())
     }
 
-    pub fn insert(&mut self, item: I) -> Id<I> {
-        let id = Id {
-            raw: Uuid::new_v4(),
-            phantom: PhantomData,
-        };
-        let id_clone = id.clone();
-        self.0.insert(id, item);
+    pub fn init(raw: HashMap<UnsafeId, I>) -> IdMap<I> {
+        IdMap(raw)
+    }
 
-        id_clone
+    pub fn insert(&mut self, item: I) -> Id<I> {
+        let uuid = Uuid::new_v4();
+        self.0.insert(uuid, item);
+
+        Id::init(uuid)
     }
 
     pub fn values(&self) -> impl Iterator<Item = &I> {
@@ -28,17 +28,31 @@ impl<I> IdMap<I> {
     }
 
     pub fn get(&self, id: &Id<I>) -> &I {
-        self.0.get(&id).expect("The location id was invalid.")
+        self.0.get(&id.raw).expect("The location id was invalid.")
+    }
+
+    pub fn set(&mut self, id: Id<I>, new_item: I) {
+        self.0.insert(id.raw, new_item);
+    }
+
+    pub fn validate(&self, unsafe_id: UnsafeId) -> Option<(Id<I>)> {
+        if self.0.contains_key(&unsafe_id) {
+            Some(Id::init(unsafe_id))
+        } else {
+            None
+        }
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(transparent)]
 pub struct Id<T> {
     raw: Uuid,
     #[serde(skip)]
     phantom: PhantomData<T>,
 }
+
+pub type UnsafeId = Uuid;
 
 impl<T> PartialEq for Id<T> {
     fn eq(&self, other: &Id<T>) -> bool {
@@ -57,11 +71,22 @@ impl<T> Clone for Id<T> {
     }
 }
 
+impl<T> Copy for Id<T> {}
+
 impl<T> std::hash::Hash for Id<T> {
     fn hash<H>(&self, state: &mut H)
     where
         H: std::hash::Hasher,
     {
         self.raw.hash(state)
+    }
+}
+
+impl<T> Id<T> {
+    fn init(raw: Uuid) -> Id<T> {
+        Id {
+            raw,
+            phantom: PhantomData,
+        }
     }
 }
