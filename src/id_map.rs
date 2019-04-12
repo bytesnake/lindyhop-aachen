@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use serde::Serialize;
+use uuid::Uuid;
 
+#[derive(Serialize)]
 pub struct IdMap<I>(HashMap<Id<I>, I>);
 
 impl<I> IdMap<I> {
@@ -11,7 +13,10 @@ impl<I> IdMap<I> {
     }
 
     pub fn insert(&mut self, item: I) -> Id<I> {
-        let id = Id(self.0.len(), PhantomData);
+        let id = Id {
+            raw: Uuid::new_v4(),
+            phantom: PhantomData,
+        };
         let id_clone = id.clone();
         self.0.insert(id, item);
 
@@ -28,11 +33,16 @@ impl<I> IdMap<I> {
 }
 
 #[derive(Serialize)]
-pub struct Id<T>(usize, PhantomData<T>);
+#[serde(transparent)]
+pub struct Id<T> {
+    raw: Uuid,
+    #[serde(skip)]
+    phantom: PhantomData<T>,
+}
 
 impl<T> PartialEq for Id<T> {
     fn eq(&self, other: &Id<T>) -> bool {
-        self.0 == other.0
+        self.raw == other.raw
     }
 }
 
@@ -40,7 +50,10 @@ impl<T> Eq for Id<T> {}
 
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Id(self.0.clone(), PhantomData)
+        Id {
+            raw: self.raw.clone(),
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -49,6 +62,6 @@ impl<T> std::hash::Hash for Id<T> {
     where
         H: std::hash::Hasher,
     {
-        self.0.hash(state)
+        self.raw.hash(state)
     }
 }
