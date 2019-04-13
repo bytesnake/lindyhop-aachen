@@ -91,6 +91,8 @@ type Msg
     | InputTeaser String
     | InputDescription String
     | InputOccurrence Int OccurrenceMsg
+    | ClickedSave
+    | SentEvent (Result Http.Error ())
 
 
 type OccurrenceMsg
@@ -174,6 +176,13 @@ update msg model =
             in
             ( newModel, Cmd.none )
 
+        ClickedSave ->
+            (model, Events.updateEvent model.eventId model.event SentEvent)
+
+        SentEvent result ->
+            (model, Cmd.none)
+
+
 
 updateEvent : Model -> (Event -> Event) -> Model
 updateEvent model eventUpdater =
@@ -199,10 +208,12 @@ view model =
     , ol [ css [ spreadListItemStyle ] ]
         (List.indexedMap
             (\index occurrence ->
-                li [] [viewEditOccurrence model.locations index occurrence]
+                li [] [ viewEditOccurrence model.locations index occurrence ]
             )
             model.event.occurrences
         )
+
+    , Utils.button "Speichern" ClickedSave
     ]
 
 

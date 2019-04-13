@@ -1,6 +1,6 @@
 module Events exposing
     ( Event, Occurrence, Location, Store, Events, Locations
-    , fetchEvents
+    , fetchEvents, updateEvent, updateLocation
     , locations, events, mapEvents, mapLocations
     )
 
@@ -12,9 +12,9 @@ module Events exposing
 @docs Event, Occurrence, Location, Store, Events, Locations
 
 
-# Fetch
+# API
 
-@docs fetchEvents
+@docs fetchEvents, updateEvent, updateLocation
 
 
 # Access
@@ -30,6 +30,7 @@ import IdDict exposing (Id, IdDict)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
+import Url.Builder
 import Utils.NaiveDateTime as Naive exposing (DateTime)
 
 
@@ -100,12 +101,21 @@ mapEvents mapping store =
 -- Init
 
 
+apiUrl : List String -> String
+apiUrl path =
+    let
+        base =
+            [ "api" ]
+    in
+    Url.Builder.absolute (base ++ path) []
+
+
 {-| The HTTP command to fetch the events.
 -}
 fetchEvents : (Result Http.Error Store -> msg) -> Cmd msg
 fetchEvents toMsg =
     Http.get
-        { url = "/api/events"
+        { url = apiUrl [ "events" ]
         , expect = Http.expectJson toMsg decodeEvents
         }
 
@@ -115,8 +125,21 @@ updateEvent id event toMsg =
     Http.request
         { method = "PUT"
         , headers = []
-        , url = "/api/event/" ++ IdDict.encodeIdForUrl id
+        , url = apiUrl [ "events", IdDict.encodeIdForUrl id ]
         , body = Http.jsonBody (encodeEvent event)
+        , expect = Http.expectWhatever toMsg
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+updateLocation : Id Location -> Location -> (Result Http.Error () -> msg) -> Cmd msg
+updateLocation id location toMsg =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = apiUrl ["locations", IdDict.encodeIdForUrl id]
+        , body = Http.jsonBody (encodeLocation location)
         , expect = Http.expectWhatever toMsg
         , timeout = Nothing
         , tracker = Nothing
@@ -200,7 +223,7 @@ encodeOccurrence occurrence =
     Encode.object
         [ ( "start", Naive.encodeDateTime occurrence.start )
         , ( "duration", Encode.int occurrence.duration )
-        , ( "location", IdDict.encodeId occurrence.locationId )
+        , ( "location_id", IdDict.encodeId occurrence.locationId )
         ]
 
 

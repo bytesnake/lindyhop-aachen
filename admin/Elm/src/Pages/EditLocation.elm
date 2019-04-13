@@ -83,6 +83,8 @@ updateLoad msg model =
 type Msg
     = InputName String
     | InputAddress String
+    | ClickedSave
+    | SentLocation (Result Http.Error ())
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -104,6 +106,12 @@ update msg model =
             in
             ( newModel, Cmd.none )
 
+        ClickedSave ->
+            ( model, Events.updateLocation model.locationId model.location SentLocation)
+
+        SentLocation result ->
+            (model, Cmd.none)
+
 
 updateLocation : Model -> (Location -> Location) -> Model
 updateLocation model locationUpdater =
@@ -124,4 +132,5 @@ view model =
         [ viewInputText "Bezeichnung" model.location.name InputName
         , viewTextArea "Adresse" model.location.address InputAddress
         ]
+    , Utils.button "Speichern" ClickedSave
     ]

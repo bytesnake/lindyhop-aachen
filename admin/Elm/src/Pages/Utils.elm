@@ -1,5 +1,6 @@
 module Pages.Utils exposing
     ( breadcrumbs
+    , button
     , fields
     , labeled
     , viewDateTimeInput
@@ -12,7 +13,7 @@ import Css exposing (center, column, em, flexStart, none, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
-import Html.Styled.Events exposing (onInput)
+import Html.Styled.Events exposing (onClick, onInput)
 import Routes exposing (Route)
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -135,3 +136,8 @@ inputSpacingStyle =
         [ Css.marginTop (em 1)
         , Css.marginBottom (em 1)
         ]
+
+
+button : String -> msg -> Html msg
+button lbl onClickMsg =
+    Html.button [ onClick onClickMsg ] [ text lbl ]
