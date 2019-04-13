@@ -14,7 +14,6 @@ use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
-use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::uuid::Uuid;
 
 use events::{Event, Events, Location, Locations, Occurrence, RefEvent};
@@ -57,7 +56,7 @@ fn all_events(store: State<Store>) -> Json<events::Store> {
 }
 
 #[put("/api/events/<uuid>", data = "<new_event>")]
-fn set_event(
+fn put_event(
     uuid: Uuid,
     new_event: Json<RefEvent>,
     store: State<Store>,
@@ -83,7 +82,7 @@ fn set_event(
 }
 
 #[put("/api/locations/<uuid>", data = "<new_location>")]
-fn set_location(
+fn put_location(
     uuid: Uuid,
     new_location: Json<Location>,
     store: State<Store>,
@@ -97,9 +96,18 @@ fn set_location(
     })
 }
 
+#[get("/admin")]
+fn admin_route() -> Option<NamedFile> {
+    admin()
+}
+
 #[get("/admin/<path..>")]
 #[allow(unused_variables)]
-fn admin(path: PathBuf) -> Option<NamedFile> {
+fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
+    admin()
+}
+
+fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
@@ -157,7 +165,14 @@ fn main() {
         .manage(RwLock::new(events::Store { locations, events }))
         .mount(
             "/",
-            routes![index, all_events, set_event, set_location, admin],
+            routes![
+                index,
+                all_events,
+                put_event,
+                put_location,
+                admin_route,
+                admin_subroute
+            ],
         )
         .launch();
 }
