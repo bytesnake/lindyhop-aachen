@@ -42,14 +42,15 @@ pub struct Store {
 
 impl Store {
     fn resolve(locations: Locations, ref_events: HashMap<UnsafeId, RefEvent>) -> Option<Store> {
-        ref_events
+        let maybe_events: Option<HashMap<UnsafeId, Event>> = ref_events
             .into_iter()
             .map(|(key, ref_event)| ref_event.resolve(&locations).map(|event| (key, event)))
-            .collect::<Option<HashMap<UnsafeId, Event>>>()
-            .map(|events| Store {
-                locations: locations,
-                events: IdMap::init(events),
-            })
+            .collect();
+
+        maybe_events.map(|events| Store {
+            locations: locations,
+            events: IdMap::init(events),
+        })
     }
 }
 
@@ -69,16 +70,22 @@ pub struct RefEvent {
 
 impl RefEvent {
     pub fn resolve(self, locations: &Locations) -> Option<Event> {
-        self.occurrences
-            .iter()
+        let name = self.name;
+        let teaser = self.teaser;
+        let description = self.description;
+
+        let maybe_occurrences: Option<Vec<Occurrence>> = self
+            .occurrences
+            .into_iter()
             .map(|occurrence| occurrence.resolve(locations))
-            .collect::<Option<Vec<Occurrence>>>()
-            .map(|occurrences| Event {
-                name: self.name,
-                teaser: self.teaser,
-                description: self.description,
-                occurrences,
-            })
+            .collect();
+
+        maybe_occurrences.map(|occurrences| Event {
+            name,
+            teaser,
+            description,
+            occurrences,
+        })
     }
 }
 
@@ -91,7 +98,7 @@ pub struct RefOccurrence {
 }
 
 impl RefOccurrence {
-    pub fn resolve(&self, locations: &Locations) -> Option<Occurrence> {
+    pub fn resolve(self, locations: &Locations) -> Option<Occurrence> {
         locations
             .validate(self.unsafe_location_id)
             .map(|location_id| Occurrence {
