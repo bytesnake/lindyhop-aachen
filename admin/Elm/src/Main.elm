@@ -2,18 +2,19 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
-import Date exposing (Date)
-import Events exposing (EventsTree, OccurrenceList)
-import Events.Event as Event exposing (Event, FullEvent, fullEventDecoder)
-import Events.Location as Location exposing (Location)
-import Events.Occurrence as Occurrence exposing (Occurrence, OccurrenceTime)
-import Html exposing (Html, div, h1, h2, li, ol, p, text)
+import Events exposing (Event, Events, Location, Occurrence)
+import Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
+import Html.Attributes exposing (href, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
+import Pages.EditEvent
+import Pages.EditLocation
+import Pages.Overview
+import Routes exposing (Route)
 import Task
 import Time
 import Url exposing (Url)
-import Utils.SimpleTime as SimpleTime exposing (SimpleTime)
 
 
 
@@ -24,10 +25,10 @@ main =
     Browser.application
         { init = init
         , view = view
-        , update = appUpdate
+        , update = update
         , subscriptions = subscriptions
-        , onUrlRequest = \_ -> AppNoOp
-        , onUrlChange = \_ -> AppNoOp
+        , onUrlRequest = LinkClicked
+        , onUrlChange = UrlChanged
         }
 
 
@@ -35,40 +36,65 @@ main =
 -- Model
 
 
-type AppModel
-    = Loading
-    | LoadedEvents (List FullEvent)
-    | ErrorLoadingEvents Http.Error
-    | LoadedTimezone Time.Zone
-    | Loaded Model
+type Model
+    = Loaded Browser.Key RouteModel
+    | Loading Browser.Key RouteModel RouteLoadModel
 
 
-type alias Model =
-    { timezone : Time.Zone
-    , events : OccurrenceList
-    }
+keyFromModel : Model -> Browser.Key
+keyFromModel model =
+    case model of
+        Loaded key _ ->
+            key
+
+        Loading key _ _ ->
+            key
+
+
+loadedFromModel : Model -> RouteModel
+loadedFromModel model =
+    case model of
+        Loaded _ routeModel ->
+            routeModel
+
+        Loading _ routeModel _ ->
+            routeModel
+
+
+type RouteModel
+    = LoadingRoute
+    | ErrorLoading
+    | NotFound
+    | Overview Pages.Overview.Model
+    | EditEvent Pages.EditEvent.Model
+    | EditLocation Pages.EditLocation.Model
+
+
+type RouteLoadModel
+    = OverviewLoad Pages.Overview.LoadModel
+    | EditEventLoad Pages.EditEvent.LoadModel
+    | EditLocationLoad Pages.EditLocation.LoadModel
 
 
 
 -- I/O
 
 
-init : () -> Url -> Browser.Key -> ( AppModel, Cmd AppMsg )
-init _ url key =
+init : () -> Url -> Browser.Key -> ( Model, Cmd Msg )
+init flags url key =
     let
-        getTimezone =
-            Task.perform FetchedTimezone Time.here
-
-        getEvents =
-            Http.get
-                { url = "/api/events"
-                , expect = Http.expectJson FetchedEvents (Decode.list fullEventDecoder)
-                }
+        route =
+            Routes.toRoute url
     in
-    ( Loading, Cmd.batch [ getTimezone, getEvents ] )
+    initWith key route
 
 
-subscriptions : AppModel -> Sub AppMsg
+initWith : Browser.Key -> Route -> ( Model, Cmd Msg )
+initWith key route =
+    load (Loaded key LoadingRoute) route
+
+
+subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.none
 
@@ -77,99 +103,15 @@ subscriptions model =
 -- Update
 
 
-type AppMsg
-    = AppNoOp
-    | FetchedTimezone Time.Zone
-    | FetchedEvents (Result Http.Error (List FullEvent))
-    | Sub Msg
-
-
-appUpdate : AppMsg -> AppModel -> ( AppModel, Cmd AppMsg )
-appUpdate msg model =
-    case msg of
-        AppNoOp ->
-            ( model, Cmd.none )
-
-        FetchedTimezone zone ->
-            let
-                newModel =
-                    load (Just zone) Nothing model
-            in
-            ( newModel, Cmd.none )
-
-        FetchedEvents result ->
-            let
-                newModel =
-                    case result of
-                        Ok events ->
-                            load Nothing (Just events) model
-
-                        Err error ->
-                            ErrorLoadingEvents error
-            in
-            ( newModel, Cmd.none )
-
-        Sub subMsg ->
-            case model of
-                Loaded loadedModel ->
-                    update subMsg loadedModel
-                        |> Tuple.mapBoth Loaded (Cmd.map Sub)
-
-                _ ->
-                    ( model, Cmd.none )
-
-
-load : Maybe Time.Zone -> Maybe (List FullEvent) -> AppModel -> AppModel
-load maybeZone maybeEvents model =
-    let
-        loaded : Time.Zone -> List FullEvent -> AppModel
-        loaded zone events =
-            Loaded
-                { timezone = zone
-                , events =
-                    Events.occurrenceListFromEventsTree events
-                }
-    in
-    case model of
-        Loading ->
-            case ( maybeZone, maybeEvents ) of
-                ( Just zone, Just events ) ->
-                    loaded zone events
-
-                ( Just zone, Nothing ) ->
-                    LoadedTimezone zone
-
-                ( Nothing, Just events ) ->
-                    LoadedEvents events
-
-                ( Nothing, Nothing ) ->
-                    Loading
-
-        LoadedEvents events ->
-            case maybeZone of
-                Just zone ->
-                    loaded zone events
-
-                Nothing ->
-                    LoadedEvents events
-
-        LoadedTimezone zone ->
-            case maybeEvents of
-                Just events ->
-                    loaded zone events
-
-                Nothing ->
-                    LoadedTimezone zone
-
-        ErrorLoadingEvents _ ->
-            model
-
-        Loaded _ ->
-            model
-
-
 type Msg
     = NoOp
+    | LinkClicked Browser.UrlRequest
+    | UrlChanged Url
+    | OverviewLoadMsg Pages.Overview.LoadMsg
+    | EditEventLoadMsg Pages.EditEvent.LoadMsg
+    | EditEventMsg Pages.EditEvent.Msg
+    | EditLocationLoadMsg Pages.EditLocation.LoadMsg
+    | EditLocationMsg Pages.EditLocation.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -178,129 +120,176 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        LinkClicked request ->
+            case request of
+                Browser.Internal url ->
+                    let
+                        key =
+                            keyFromModel model
+                    in
+                    ( model, Browser.pushUrl key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Browser.load href )
+
+        UrlChanged url ->
+            load model (Routes.toRoute url)
+
+        OverviewLoadMsg subMsg ->
+            case model of
+                Loading key loaded (OverviewLoad subModel) ->
+                    case Pages.Overview.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (Overview newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditEventLoadMsg subMsg ->
+            case model of
+                Loading key loaded (EditEventLoad subModel) ->
+                    case Pages.EditEvent.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (EditEvent newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditEventMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        EditEvent subModel ->
+                            Pages.EditEvent.update subMsg subModel
+                                |> Tuple.mapBoth EditEvent (Cmd.map EditEventMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
+        EditLocationLoadMsg subMsg ->
+            case model of
+                Loading key loaded (EditLocationLoad subModel) ->
+                    case Pages.EditLocation.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (EditLocation newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditLocationMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        EditLocation subModel ->
+                            Pages.EditLocation.update subMsg subModel
+                                |> Tuple.mapBoth EditLocation (Cmd.map EditLocationMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
+
+load : Model -> Route -> ( Model, Cmd Msg )
+load model route =
+    let
+        key =
+            keyFromModel model
+    in
+    case route of
+        Routes.NotFound ->
+            ( Loaded key <| NotFound, Cmd.none )
+
+        Routes.Overview ->
+            Pages.Overview.init
+                |> wrapLoadModel model OverviewLoad OverviewLoadMsg
+
+        Routes.Event rawId ->
+            Pages.EditEvent.init rawId
+                |> wrapLoadModel model EditEventLoad EditEventLoadMsg
+
+        Routes.Location rawId ->
+            Pages.EditLocation.init rawId
+                |> wrapLoadModel model EditLocationLoad EditLocationLoadMsg
+
+
+wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> (subLoadMsg -> msg) -> ( subModel, Cmd subLoadMsg ) -> ( Model, Cmd msg )
+wrapLoadModel model wrapper loadMsgWrapper updateTuple =
+    let
+        key =
+            keyFromModel model
+
+        loaded =
+            loadedFromModel model
+    in
+    Tuple.mapBoth
+        (\subModel -> Loading key loaded (wrapper subModel))
+        (Cmd.map loadMsgWrapper)
+        updateTuple
+
+
+updateLoaded : (RouteModel -> ( RouteModel, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
+updateLoaded updater model =
+    case model of
+        Loaded key loaded ->
+            updater loaded |> Tuple.mapFirst (Loaded key)
+
+        Loading key loaded loading ->
+            updater loaded |> Tuple.mapFirst (\newLoaded -> Loading key newLoaded loading)
+
 
 
 -- View
 
 
-view : AppModel -> Browser.Document AppMsg
-view appModel =
-    let
-        html : List (Html AppMsg)
-        html =
-            case appModel of
-                Loading ->
-                    viewLoading
-
-                LoadedEvents _ ->
-                    viewLoading
-
-                LoadedTimezone _ ->
-                    viewLoading
-
-                ErrorLoadingEvents error ->
-                    viewError error
-
-                Loaded model ->
-                    viewLoaded model
-                        |> List.map (Html.map Sub)
-    in
+view : Model -> Browser.Document Msg
+view model =
     { title = "Lindy Hop Aachen Admin"
-    , body = html
+    , body =
+        case loadedFromModel model of
+            LoadingRoute ->
+                viewLoading
+
+            ErrorLoading ->
+                viewErrorLoading
+
+            NotFound ->
+                viewNotFound
+
+            Overview subModel ->
+                Pages.Overview.view subModel
+
+            EditEvent subModel ->
+                Pages.EditEvent.view subModel
+                    |> List.map (Html.map EditEventMsg)
+
+            EditLocation subModel ->
+                Pages.EditLocation.view subModel
+                    |> List.map (Html.map EditLocationMsg)
     }
 
 
-viewLoading : List (Html AppMsg)
+viewLoading : List (Html Msg)
 viewLoading =
-    [ h1 [] [ text "Admin" ]
-    , p [] [ text "Lädt..." ]
-    ]
+    [ text "Loading..." ]
 
 
-viewError : Http.Error -> List (Html AppMsg)
-viewError error =
-    [ h1 [] [ text "Admin" ]
-    , p [] [ text "Beim Laden der Events ist ein Fehler passiert." ]
-    ]
+viewErrorLoading : List (Html Msg)
+viewErrorLoading =
+    [ text "There was an error while loading the app." ]
 
 
-viewLoaded : Model -> List (Html Msg)
-viewLoaded model =
-    [ h1 [] [ text "Admin" ]
-    , ol []
-        (List.map
-            (\( date, occurrences ) ->
-                li []
-                    [ text <| stringFromDate date
-                    , ol []
-                        (List.map
-                            (\( occurrence, event ) ->
-                                li [] [ viewOccurrence model.timezone occurrence event ]
-                            )
-                            occurrences
-                        )
-                    ]
-            )
-            (Events.dateTreeFromOccurrenceList model.timezone model.events)
-        )
-    ]
-
-
-viewOccurrence : Time.Zone -> OccurrenceTime -> Event -> Html Msg
-viewOccurrence zone occurrence event =
-    let
-        startTime =
-            stringFromSimpleTime occurrence.startTime
-
-        description =
-            startTime ++ " - " ++ occurrence.location.name
-    in
-    div []
-        [ p [] [ text event.name ]
-        , p [] [ text description ]
-        ]
-
-
-
--- View Helpers
-
-
-stringFromDate : Date -> String
-stringFromDate date =
-    let
-        day =
-            Date.day date
-                |> padInt
-
-        month =
-            Date.monthNumber date
-                |> padInt
-
-        year =
-            Date.year date
-                |> String.fromInt
-    in
-    day ++ "." ++ month ++ "." ++ year
-
-
-stringFromSimpleTime : SimpleTime -> String
-stringFromSimpleTime time =
-    let
-        hour =
-            SimpleTime.hour time
-                |> padInt
-
-        minute =
-            SimpleTime.minute time
-                |> padInt
-    in
-    hour ++ ":" ++ minute
-
-
-padInt : Int -> String
-padInt n =
-    if n < 10 then
-        "0" ++ String.fromInt n
-
-    else
-        String.fromInt n
+viewNotFound : List (Html Msg)
+viewNotFound =
+    [ text "Not found." ]

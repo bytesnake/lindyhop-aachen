@@ -1,0 +1,74 @@
+{
+    "events": {
+        "locations": [
+            {
+                "id": "1",
+                "name": "Chico Mendès",
+                "address": "Pontstraße 74-76, 52062 Aachen"
+            },
+            {
+                "id": "2",
+                "name": "Sencillito",
+                "address": "Alexander Strasse 109, 52066 Aachen"
+            }
+        ],
+        "events": [
+            {
+                "id": "1",
+                "name": "Anfängerkurs",
+                "teaser": "Für diejenigen, die Lindy Hop ausprobieren möchten.",
+                "description": "Unter Anleitung werden dir die Grundschritte des Lindy Hops beigebracht.",
+                "occurrences": [
+                    {
+                        "start": "2019-04-01T19:45",
+                        "duration": 45,
+                        "location": "1"
+                    },
+                    {
+                        "start": "2019-04-08T19:00",
+                        "duration": 60,
+                        "location": "2"
+                    }
+                ]
+            },
+            {
+                "id": "2",
+                "name": "Social Dance",
+                "teaser": "Einfach Lindy Hop tanzen.",
+                "description": "Hier triffst du viele andere Menschen, die ebenfalls Lust haben, Lindy Hop zu tanzen.",
+                "occurrences": [
+                    {
+                        "start": "2019-04-01T20:30",
+                        "duration": 90,
+                        "location": "1"
+                    },
+                    {
+                        "start": "2019-04-08T20:00",
+                        "duration": 60,
+                        "location": "2"
+                    },
+                    {
+                        "start": "2019-04-15T20:30",
+                        "duration": 90,
+                        "location": "1"
+                    },
+                    {
+                        "start": "2019-04-22T20:00",
+                        "duration": 60,
+                        "location": "2"
+                    },
+                    {
+                        "start": "2019-04-29T20:30",
+                        "duration": 90,
+                        "location": "1"
+                    },
+                    {
+                        "start": "2019-05-06T20:00",
+                        "duration": 90,
+                        "location": "2"
+                    }
+                ]
+            }
+        ]
+    }
+}
