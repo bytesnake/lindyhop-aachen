@@ -18,7 +18,9 @@ use rocket_contrib::uuid::Uuid;
 use events::{Event, Events, Location, Locations, Occurrence, RefEvent};
 
 #[get("/")]
-fn index(store: State<events::Store>) -> Markup {
+fn index(store: State<Store>) -> Markup {
+    let store = store.read().unwrap();
+    
     html! {
         h1 { "Lindy Hop Aachen" }
         ol {
