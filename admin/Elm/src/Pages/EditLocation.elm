@@ -107,10 +107,10 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            ( model, Events.updateLocation model.locationId model.location SentLocation)
+            ( model, Events.updateLocation model.locationId model.location SentLocation )
 
         SentLocation result ->
-            (model, Cmd.none)
+            ( model, Cmd.none )
 
 
 updateLocation : Model -> (Location -> Location) -> Model

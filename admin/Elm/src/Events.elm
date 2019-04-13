@@ -138,7 +138,7 @@ updateLocation id location toMsg =
     Http.request
         { method = "PUT"
         , headers = []
-        , url = apiUrl ["locations", IdDict.encodeIdForUrl id]
+        , url = apiUrl [ "locations", IdDict.encodeIdForUrl id ]
         , body = Http.jsonBody (encodeLocation location)
         , expect = Http.expectWhatever toMsg
         , timeout = Nothing

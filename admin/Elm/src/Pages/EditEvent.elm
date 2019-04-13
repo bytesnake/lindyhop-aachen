@@ -177,11 +177,10 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            (model, Events.updateEvent model.eventId model.event SentEvent)
+            ( model, Events.updateEvent model.eventId model.event SentEvent )
 
         SentEvent result ->
-            (model, Cmd.none)
-
+            ( model, Cmd.none )
 
 
 updateEvent : Model -> (Event -> Event) -> Model
@@ -212,7 +211,6 @@ view model =
             )
             model.event.occurrences
         )
-
     , Utils.button "Speichern" ClickedSave
     ]
 

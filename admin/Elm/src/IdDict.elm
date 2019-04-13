@@ -1,4 +1,4 @@
-module IdDict exposing (Id, IdDict, encodeIdForUrl, decodeIdDict, encodeId, from, get, map, validate)
+module IdDict exposing (Id, IdDict, decodeIdDict, encodeId, encodeIdForUrl, from, get, map, validate)
 
 import Dict exposing (Dict)
 import Json.Decode as Decode
@@ -50,6 +50,7 @@ type Id a
 encodeIdForUrl : Id a -> String
 encodeIdForUrl (Id raw) =
     raw
+
 
 encodeId : Id a -> Encode.Value
 encodeId (Id raw) =
