@@ -9,8 +9,8 @@ use std::sync::RwLock;
 extern crate rocket;
 use chrono::prelude::*;
 use maud::{html, Markup};
-use rocket::State;
 use rocket::response::status::NotFound;
+use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::uuid::Uuid;
@@ -20,7 +20,7 @@ use events::{Event, Events, Location, Locations, Occurrence, RefEvent};
 #[get("/")]
 fn index(store: State<Store>) -> Markup {
     let store = store.read().unwrap();
-    
+
     html! {
         h1 { "Lindy Hop Aachen" }
         ol {
@@ -76,7 +76,8 @@ fn set_event(
 
                     Json(store.events.get(&id).clone())
                 })
-        }).map_err(|err| NotFound(err))
+        })
+        .map_err(|err| NotFound(err))
 }
 
 #[post("/api/locations/<uuid>", data = "<new_location>")]
