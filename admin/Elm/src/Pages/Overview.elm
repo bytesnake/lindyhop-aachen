@@ -7,17 +7,20 @@ module Pages.Overview exposing
     , view
     )
 
+import Css exposing (em, inherit, none, zero)
+import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html exposing (Html, a, div, h1, h2, li, ol, text)
-import Html.Attributes exposing (href)
+import Html.Styled exposing (Html, a, div, h1, h2, li, ol, text)
+import Html.Styled.Attributes exposing (css, href)
 import Http
 import IdDict exposing (encodeIdForUrl)
+import Routes
 import Time
 import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
-    { events : Events.Store
+    { store : Events.Store
     }
 
 
@@ -49,28 +52,63 @@ view : Model -> List (Html msg)
 view model =
     [ h1 [] [ text "Admin" ]
     , h2 [] [ text "Veranstaltungen" ]
-    , ol []
+    , ol [ css [ listStyle, spreadListItemStyle ] ]
         (Events.mapEvents
             (\id event ->
                 li []
-                    [ a [ href <| "event/" ++ encodeIdForUrl id ]
-                        [ viewEvent (Events.locations model.events) event ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.Event <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                        [ viewEvent (Events.locations model.store) event ]
                     ]
             )
-            model.events
+            model.store
         )
     , h2 [] [ text "Orte" ]
-    , ol []
+    , ol [ css [ listStyle, spreadListItemStyle ] ]
         (Events.mapLocations
             (\id location ->
                 li []
-                    [ a [ href <| "location/" ++ encodeIdForUrl id ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.Location <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
                         [ viewLocation location ]
                     ]
             )
-            model.events
+            model.store
         )
     ]
+
+
+hiddenLinkStyle : Css.Style
+hiddenLinkStyle =
+    Css.batch
+        [ Css.color inherit
+        , Css.textDecoration inherit
+        , Css.hover
+            [ Css.color (Css.rgba 0 0 0 0.6)
+            ]
+        ]
+
+
+listStyle : Css.Style
+listStyle =
+    Css.batch
+        [ Css.listStyleType none
+        , Css.padding zero
+        ]
+
+
+spreadListItemStyle : Css.Style
+spreadListItemStyle =
+    Css.batch
+        [ Css.children
+            [ Css.typeSelector "li"
+                [ Css.adjacentSiblings
+                    [ Css.typeSelector
+                        "li"
+                        [ Css.marginTop (em 0.5)
+                        ]
+                    ]
+                ]
+            ]
+        ]
 
 
 viewEvent : Locations -> Event -> Html msg
@@ -99,7 +137,7 @@ viewEvent locations event =
     in
     div []
         [ text event.name
-        , ol [] listItems
+        , ol [ css [ listStyle ] ] listItems
         ]
 
 

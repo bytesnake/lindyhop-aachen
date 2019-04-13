@@ -10,16 +10,19 @@ module Pages.EditEvent exposing
     , view
     )
 
-import Events exposing (Event, Locations, Location, Occurrence)
-import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
-import Html.Attributes exposing (href, type_, value)
-import Html.Events exposing (onInput)
+import Css exposing (em, row, zero)
+import Css.Global as Css
+import Events exposing (Event, Location, Locations, Occurrence)
+import Html.Styled exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
+import Html.Styled.Attributes exposing (css, href, type_, value)
+import Html.Styled.Events exposing (onInput)
 import Http
 import IdDict exposing (Id)
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils as Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
 import Parser
+import Routes
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -52,7 +55,8 @@ fromEvents rawId store =
         events =
             Events.events store
 
-        locations = Events.locations store
+        locations =
+            Events.locations store
     in
     IdDict.validate rawId events
         |> Maybe.map
@@ -185,28 +189,71 @@ updateEvent model eventUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ viewInputText "Titel" model.event.name InputName
-    , viewInputText "Teaser" model.event.teaser InputTeaser
-    , viewTextArea "Beschreibung" model.event.description InputDescription
-    , ol []
+    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Event <| IdDict.encodeIdForUrl model.eventId)
+    , fields
+        [ viewInputText "Titel" model.event.name InputName
+        , viewInputText "Teaser" model.event.teaser InputTeaser
+        , viewTextArea "Beschreibung" model.event.description InputDescription
+        ]
+    , h2 [] [ text "Termine" ]
+    , ol [ css [ spreadListItemStyle ] ]
         (List.indexedMap
             (\index occurrence ->
-                li [] (viewEditOccurrence model.locations index occurrence)
+                li [] [viewEditOccurrence model.locations index occurrence]
             )
             model.event.occurrences
         )
     ]
 
 
-viewEditOccurrence : Locations -> Int -> Occurrence -> List (Html Msg)
+spreadListItemStyle : Css.Style
+spreadListItemStyle =
+    Css.batch
+        [ Css.children
+            [ Css.typeSelector "li"
+                [ Css.adjacentSiblings
+                    [ Css.typeSelector
+                        "li"
+                        [ Css.marginTop (em 1)
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+
+viewEditOccurrence : Locations -> Int -> Occurrence -> Html Msg
 viewEditOccurrence locations index occurrence =
     let
         time =
             TimeFormat.time occurrence.start
 
-        location = IdDict.get occurrence.locationId locations
+        location =
+            IdDict.get occurrence.locationId locations
+
+        occurrenceStyle =
+            Css.batch
+                [ Css.displayFlex
+                , Css.flexDirection row
+                , Css.children
+                    [ Css.everything
+                        [ Css.adjacentSiblings
+                            [ Css.everything
+                                [ Css.marginLeft (em 1)
+                                ]
+                            ]
+                        , Css.paddingTop zero
+                        , Css.paddingBottom zero
+                        ]
+                    ]
+                ]
     in
-    [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
-    , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
-    , a [ href <| "../location/" ++ IdDict.encodeIdForUrl occurrence.locationId ] [ text location.name ]
-    ]
+    div [ css [ occurrenceStyle ] ]
+        [ viewDateTimeInput "Beginn"
+            occurrence.start
+            { dateChanged = InputOccurrence index << InputStartDate
+            , timeChanged = InputOccurrence index << InputStartTime
+            }
+        , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+        , labeled "Ort" [ a [ href (Routes.toRelativeUrl <| Routes.Location <| IdDict.encodeIdForUrl occurrence.locationId) ] [ text location.name ] ]
+        ]
