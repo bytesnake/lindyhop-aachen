@@ -265,7 +265,7 @@ dateTimeParser =
         |= dateParser
         |. symbol "T"
         |= timeParser
-        |. end
+        --|. end
 
 
 dateParser : Parser Date

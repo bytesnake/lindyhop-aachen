@@ -10,11 +10,12 @@ module Pages.EditEvent exposing
     , view
     )
 
-import Events exposing (Event, Events, Id, Location, Occurrence)
+import Events exposing (Event, Locations, Location, Occurrence)
 import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
 import Html.Attributes exposing (href, type_, value)
 import Html.Events exposing (onInput)
 import Http
+import IdDict exposing (Id)
 import Json.Encode as Encode
 import List.Extra as List
 import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
@@ -27,6 +28,7 @@ import Utils.TimeFormat as TimeFormat
 type alias Model =
     { eventId : Id Event
     , event : Event
+    , locations : Locations
     }
 
 
@@ -44,14 +46,23 @@ init rawId =
     ( LoadModel rawId, fetchEvents )
 
 
-fromEvents : String -> Events -> Maybe Model
-fromEvents rawId events =
-    Events.findEvent rawId events
-        |> Maybe.map (\( id, event ) -> Model id event)
+fromEvents : String -> Events.Store -> Maybe Model
+fromEvents rawId store =
+    let
+        events =
+            Events.events store
+
+        locations = Events.locations store
+    in
+    IdDict.validate rawId events
+        |> Maybe.map
+            (\id ->
+                Model id (IdDict.get id events) locations
+            )
 
 
 type LoadMsg
-    = FetchedEvents (Result Http.Error Events)
+    = FetchedEvents (Result Http.Error Events.Store)
 
 
 type LoadError
@@ -180,24 +191,22 @@ view model =
     , ol []
         (List.indexedMap
             (\index occurrence ->
-                li [] (viewEditOccurrence index occurrence)
+                li [] (viewEditOccurrence model.locations index occurrence)
             )
             model.event.occurrences
         )
-    , p [] [ text <| Encode.encode 2 (Events.encodeEvent model.event) ]
     ]
 
 
-viewEditOccurrence : Int -> Occurrence -> List (Html Msg)
-viewEditOccurrence index occurrence =
+viewEditOccurrence : Locations -> Int -> Occurrence -> List (Html Msg)
+viewEditOccurrence locations index occurrence =
     let
         time =
             TimeFormat.time occurrence.start
 
-        ( locationId, location ) =
-            occurrence.location
+        location = IdDict.get occurrence.locationId locations
     in
     [ viewDateTimeInput "Beginn" occurrence.start { dateChanged = InputOccurrence index << InputStartDate, timeChanged = InputOccurrence index << InputStartTime }
     , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
-    , a [ href <| "../location/" ++ Events.stringFromId locationId ] [ text location.name ]
+    , a [ href <| "../location/" ++ IdDict.encodeIdForUrl occurrence.locationId ] [ text location.name ]
     ]

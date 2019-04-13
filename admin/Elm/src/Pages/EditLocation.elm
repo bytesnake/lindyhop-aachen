@@ -10,11 +10,12 @@ module Pages.EditLocation exposing
     , view
     )
 
-import Events exposing (Event, Events, Id, Location, Occurrence)
+import Events exposing (Event, Events, Location, Occurrence)
 import Html exposing (Html, a, input, label, li, ol, p, text, textarea)
 import Html.Attributes exposing (href, type_, value)
 import Html.Events exposing (onInput)
 import Http
+import IdDict exposing (Id)
 import Json.Encode as Encode
 import List.Extra as List
 import Pages.Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
@@ -44,14 +45,21 @@ init rawId =
     ( LoadModel rawId, fetchEvents )
 
 
-fromEvents : String -> Events -> Maybe Model
-fromEvents rawId events =
-    Events.findLocation rawId events
-        |> Maybe.map (\( id, event ) -> Model id event)
+fromEvents : String -> Events.Store -> Maybe Model
+fromEvents rawId store =
+    let
+        locations =
+            Events.locations store
+    in
+    IdDict.validate rawId locations
+        |> Maybe.map
+            (\id ->
+                Model id (IdDict.get id locations)
+            )
 
 
 type LoadMsg
-    = FetchedEvents (Result Http.Error Events)
+    = FetchedEvents (Result Http.Error Events.Store)
 
 
 type LoadError
@@ -112,5 +120,4 @@ view : Model -> List (Html Msg)
 view model =
     [ viewInputText "Bezeichnung" model.location.name InputName
     , viewTextArea "Adresse" model.location.address InputAddress
-    , p [] [ text <| Encode.encode 2 (Events.encodeLocation model.location) ]
     ]

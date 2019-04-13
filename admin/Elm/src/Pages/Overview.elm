@@ -7,16 +7,17 @@ module Pages.Overview exposing
     , view
     )
 
-import Events exposing (Event, Events, Location, Occurrence)
+import Events exposing (Event, Location, Locations, Occurrence)
 import Html exposing (Html, a, div, h1, h2, li, ol, text)
 import Html.Attributes exposing (href)
 import Http
+import IdDict exposing (encodeIdForUrl)
 import Time
 import Utils.TimeFormat as TimeFormat
 
 
 type alias Model =
-    { events : Events
+    { events : Events.Store
     }
 
 
@@ -34,7 +35,7 @@ init =
 
 
 type LoadMsg
-    = FetchedEvents (Result Http.Error Events)
+    = FetchedEvents (Result Http.Error Events.Store)
 
 
 updateLoad : LoadMsg -> LoadModel -> Result Http.Error Model
@@ -49,31 +50,31 @@ view model =
     [ h1 [] [ text "Admin" ]
     , h2 [] [ text "Veranstaltungen" ]
     , ol []
-        (Events.map
-            (\( id, event ) ->
+        (Events.mapEvents
+            (\id event ->
                 li []
-                    [ a [ href <| "event/" ++ Events.stringFromId id ]
-                        [ viewEvent event ]
+                    [ a [ href <| "event/" ++ encodeIdForUrl id ]
+                        [ viewEvent (Events.locations model.events) event ]
                     ]
             )
             model.events
         )
     , h2 [] [ text "Orte" ]
     , ol []
-        (List.map
-            (\( id, location ) ->
+        (Events.mapLocations
+            (\id location ->
                 li []
-                    [ a [ href <| "location/" ++ Events.stringFromId id ]
+                    [ a [ href <| "location/" ++ encodeIdForUrl id ]
                         [ viewLocation location ]
                     ]
             )
-            (Events.locations model.events)
+            model.events
         )
     ]
 
 
-viewEvent : Event -> Html msg
-viewEvent event =
+viewEvent : Locations -> Event -> Html msg
+viewEvent locations event =
     let
         max =
             5
@@ -85,7 +86,7 @@ viewEvent event =
             List.length event.occurrences > max
 
         occurrenceListItems =
-            List.map (\occurrence -> li [] [ viewOccurrence occurrence ]) occurrencesPreview
+            List.map (\occurrence -> li [] [ viewOccurrence locations occurrence ]) occurrencesPreview
 
         listItems =
             occurrenceListItems
@@ -102,11 +103,11 @@ viewEvent event =
         ]
 
 
-viewOccurrence : Occurrence -> Html msg
-viewOccurrence occurrence =
+viewOccurrence : Locations -> Occurrence -> Html msg
+viewOccurrence locations occurrence =
     let
         location =
-            Tuple.second occurrence.location
+            IdDict.get occurrence.locationId locations
     in
     div []
         [ text <| TimeFormat.fullDate occurrence.start ++ " - " ++ location.name ]
