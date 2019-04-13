@@ -253,7 +253,7 @@ encodeDateTime dateTime =
             padInt <| minute dateTime
     in
     Encode.string
-        (y ++ "-" ++ m ++ "-" ++ d ++ "T" ++ h ++ ":" ++ min)
+        (y ++ "-" ++ m ++ "-" ++ d ++ "T" ++ h ++ ":" ++ min ++ ":00")
 
 
 dateTimeParser : Parser DateTime
@@ -265,7 +265,10 @@ dateTimeParser =
         |= dateParser
         |. symbol "T"
         |= timeParser
-        --|. end
+
+
+
+--|. end
 
 
 dateParser : Parser Date
