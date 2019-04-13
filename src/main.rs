@@ -3,6 +3,7 @@
 mod events;
 mod id_map;
 
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 #[macro_use]
@@ -10,6 +11,7 @@ extern crate rocket;
 use chrono::prelude::*;
 use maud::{html, Markup};
 use rocket::response::status::NotFound;
+use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
@@ -54,7 +56,7 @@ fn all_events(store: State<Store>) -> Json<events::Store> {
     Json(store.clone())
 }
 
-#[post("/api/events/<uuid>", data = "<new_event>")]
+#[put("/api/events/<uuid>", data = "<new_event>")]
 fn set_event(
     uuid: Uuid,
     new_event: Json<RefEvent>,
@@ -80,7 +82,7 @@ fn set_event(
         .map_err(|err| NotFound(err))
 }
 
-#[post("/api/locations/<uuid>", data = "<new_location>")]
+#[put("/api/locations/<uuid>", data = "<new_location>")]
 fn set_location(
     uuid: Uuid,
     new_location: Json<Location>,
@@ -93,6 +95,12 @@ fn set_location(
 
         Json(store.locations.get(&id).clone())
     })
+}
+
+#[get("/admin/<path..>")]
+#[allow(unused_variables)]
+fn admin(path: PathBuf) -> Option<NamedFile> {
+    NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
 type Store = RwLock<events::Store>;
@@ -147,10 +155,9 @@ fn main() {
 
     rocket::ignite()
         .manage(RwLock::new(events::Store { locations, events }))
-        .mount("/admin", {
-            let path = concat!(env!("CARGO_MANIFEST_DIR"), "/admin/dist");
-            StaticFiles::from(path)
-        })
-        .mount("/", routes![index, all_events, set_event, set_location])
+        .mount(
+            "/",
+            routes![index, all_events, set_event, set_location, admin],
+        )
         .launch();
 }
