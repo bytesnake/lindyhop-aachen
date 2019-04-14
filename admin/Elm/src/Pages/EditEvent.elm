@@ -345,15 +345,27 @@ view model =
             model.inputs.occurrences
         )
     , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-        [ case eventFromInputs model.locations model.inputs of
-            Just event ->
-                Utils.button "Speichern" ClickedSave
+        [ let
+            options =
+                { enabledness =
+                    if changed model then
+                        Utils.Enabled
 
-            Nothing ->
-                text "Invalid"
+                    else
+                        Utils.Disabled
+                }
+          in
+          Utils.buttonWithOptions options "Speichern" ClickedSave
         , Utils.button "Löschen" ClickedDelete
         ]
     ]
+
+
+changed : Model -> Bool
+changed model =
+    eventFromInputs model.locations model.inputs
+        |> Maybe.map (\newEvent -> newEvent /= model.event)
+        |> Maybe.withDefault False
 
 
 spreadListItemStyle : Css.Style

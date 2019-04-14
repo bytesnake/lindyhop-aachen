@@ -1,12 +1,14 @@
 module Pages.Utils exposing
     ( In
     , Input
+    , Enabledness(..)
     , breadcrumbs
     , buildInput
     , button
     , extract
     , fields
     , inputDateTime
+    , buttonWithOptions
     , inputString
     , labeled
     , updateInput
@@ -20,7 +22,7 @@ module Pages.Utils exposing
 import Css exposing (center, column, em, flexStart, none, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
-import Html.Styled.Attributes exposing (css, href, type_, value)
+import Html.Styled.Attributes exposing (css, href, type_, value, disabled)
 import Html.Styled.Events exposing (onClick, onInput)
 import Parser
 import Routes exposing (Route)
@@ -219,6 +221,19 @@ inputSpacingStyle =
         ]
 
 
-button : String -> msg -> Html msg
-button lbl onClickMsg =
-    Html.button [ onClick onClickMsg ] [ text lbl ]
+button =
+    buttonWithOptions { enabledness = Enabled }
+
+
+type Enabledness
+    = Enabled
+    | Disabled
+
+
+buttonWithOptions : { enabledness : Enabledness } -> String -> msg -> Html msg
+buttonWithOptions options lbl msg =
+    let isDisabled = case options.enabledness of
+            Enabled -> False
+            Disabled -> True
+    in
+    Html.button [ onClick msg, disabled isDisabled ] [ text lbl ]

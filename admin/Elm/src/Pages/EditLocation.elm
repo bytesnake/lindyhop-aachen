@@ -23,8 +23,10 @@ import Pages.Utils as Utils
     exposing
         ( In
         , Input
-        , viewDateTimeInput
+        , extract
+        , updateInput
         , inputString
+        , viewDateTimeInput
         , viewInputNumber
         , viewInputText
         , viewTextArea
@@ -41,20 +43,27 @@ type alias Model =
     , location : Location
     , inputs : LocationInput
     }
- 
+
 
 type alias LocationInput =
     { name : In String
     , address : In String
     }
 
+
 inputFromLocation : Location -> LocationInput
 inputFromLocation location =
-    {
-        name = inputString location.name
-        , address=inputString location.address
-
+    { name = inputString location.name
+    , address = inputString location.address
     }
+
+
+locationFromInput : LocationInput -> Maybe Location
+locationFromInput inputs =
+    Maybe.map2
+        Location
+        (extract inputs.name)
+        (extract inputs.address)
 
 
 type alias LoadModel =
@@ -80,10 +89,14 @@ fromEvents rawId store =
     IdDict.validate rawId locations
         |> Maybe.map
             (\id ->
-                let location = IdDict.get id locations
-                    inputs = (inputFromLocation location)
+                let
+                    location =
+                        IdDict.get id locations
+
+                    inputs =
+                        inputFromLocation location
                 in
-                Model id location  inputs
+                Model id location inputs
             )
 
 
@@ -119,12 +132,16 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        setInput new input =
+            updateInput (\_ -> new) input
+    in
     case msg of
         InputName newName ->
             let
                 newModel =
                     updateLocation model
-                        (\location -> { location | name = newName })
+                        (\location -> { location | name = setInput newName location.name })
             in
             ( newModel, Cmd.none )
 
@@ -132,7 +149,7 @@ update msg model =
             let
                 newModel =
                     updateLocation model
-                        (\location -> { location | address = newAddress })
+                        (\location -> { location | address = setInput newAddress location.address })
             in
             ( newModel, Cmd.none )
 
@@ -149,16 +166,16 @@ update msg model =
             ( model, Cmd.none )
 
 
-updateLocation : Model -> (Location -> Location) -> Model
+updateLocation : Model -> (LocationInput -> LocationInput) -> Model
 updateLocation model locationUpdater =
     let
         location =
-            model.location
+            model.inputs
 
         newLocation =
             locationUpdater location
     in
-    { model | location = newLocation }
+    { model | inputs = newLocation }
 
 
 view : Model -> List (Html Msg)
@@ -169,7 +186,24 @@ view model =
         , viewTextArea "Adresse" model.inputs.address InputAddress
         ]
     , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-        [ Utils.button "Speichern" ClickedSave
+        [ let
+            options =
+                { enabledness =
+                    if changed model then
+                        Utils.Enabled
+
+                    else
+                        Utils.Disabled
+                }
+          in
+          Utils.buttonWithOptions options "Speichern" ClickedSave
         , Utils.button "Löschen" ClickedDelete
         ]
     ]
+
+
+changed : Model -> Bool
+changed model =
+    locationFromInput model.inputs
+        |> Maybe.map (\newLocation -> newLocation /= model.location)
+        |> Maybe.withDefault False
