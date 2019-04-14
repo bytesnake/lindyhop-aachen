@@ -292,7 +292,16 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            ( model, Events.updateEvent model.eventId model.event SaveFinished )
+            let
+                cmd =
+                    case eventFromInputs model.locations model.inputs of
+                        Just event ->
+                            Events.updateEvent model.eventId event SaveFinished
+
+                        Nothing ->
+                            Cmd.none
+            in
+            ( model, cmd )
 
         SaveFinished result ->
             ( model, Cmd.none )

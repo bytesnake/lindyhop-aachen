@@ -24,8 +24,8 @@ import Pages.Utils as Utils
         ( In
         , Input
         , extract
-        , updateInput
         , inputString
+        , updateInput
         , viewDateTimeInput
         , viewInputNumber
         , viewInputText
@@ -51,15 +51,15 @@ type alias LocationInput =
     }
 
 
-inputFromLocation : Location -> LocationInput
-inputFromLocation location =
+inputsFromLocation : Location -> LocationInput
+inputsFromLocation location =
     { name = inputString location.name
     , address = inputString location.address
     }
 
 
-locationFromInput : LocationInput -> Maybe Location
-locationFromInput inputs =
+locationFromInputs : LocationInput -> Maybe Location
+locationFromInputs inputs =
     Maybe.map2
         Location
         (extract inputs.name)
@@ -94,7 +94,7 @@ fromEvents rawId store =
                         IdDict.get id locations
 
                     inputs =
-                        inputFromLocation location
+                        inputsFromLocation location
                 in
                 Model id location inputs
             )
@@ -154,7 +154,16 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            ( model, Events.updateLocation model.locationId model.location SaveFinished )
+            let
+                cmd =
+                    case locationFromInputs model.inputs of
+                        Just location ->
+                            Events.updateLocation model.locationId location SaveFinished
+
+                        Nothing ->
+                            Cmd.none
+            in
+            ( model, cmd )
 
         SaveFinished result ->
             ( model, Cmd.none )
@@ -204,6 +213,6 @@ view model =
 
 changed : Model -> Bool
 changed model =
-    locationFromInput model.inputs
+    locationFromInputs model.inputs
         |> Maybe.map (\newLocation -> newLocation /= model.location)
         |> Maybe.withDefault False
