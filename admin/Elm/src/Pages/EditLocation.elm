@@ -10,8 +10,8 @@ module Pages.EditLocation exposing
     , view
     )
 
-import Events exposing (Event, Events, Location, Occurrence)
 import Css exposing (row)
+import Events exposing (Event, Events, Location, Occurrence)
 import Html.Styled exposing (Html, a, div, input, label, li, ol, p, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
@@ -141,7 +141,7 @@ view model =
         [ viewInputText "Bezeichnung" model.location.name InputName
         , viewTextArea "Adresse" model.location.address InputAddress
         ]
-    , div [ css [Css.displayFlex, Css.flexDirection row]]
+    , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
         [ Utils.button "Speichern" ClickedSave
         , Utils.button "Löschen" ClickedDelete
         ]
