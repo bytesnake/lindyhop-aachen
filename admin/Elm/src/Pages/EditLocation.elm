@@ -11,8 +11,9 @@ module Pages.EditLocation exposing
     )
 
 import Events exposing (Event, Events, Location, Occurrence)
-import Html.Styled exposing (Html, a, input, label, li, ol, p, text, textarea)
-import Html.Styled.Attributes exposing (href, type_, value)
+import Css exposing (row)
+import Html.Styled exposing (Html, a, div, input, label, li, ol, p, text, textarea)
+import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
 import IdDict exposing (Id)
@@ -84,7 +85,9 @@ type Msg
     = InputName String
     | InputAddress String
     | ClickedSave
-    | SentLocation (Result Http.Error ())
+    | SaveFinished (Result Http.Error ())
+    | ClickedDelete
+    | DeleteFinished (Result Http.Error Location)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -107,9 +110,15 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            ( model, Events.updateLocation model.locationId model.location SentLocation )
+            ( model, Events.updateLocation model.locationId model.location SaveFinished )
 
-        SentLocation result ->
+        SaveFinished result ->
+            ( model, Cmd.none )
+
+        ClickedDelete ->
+            ( model, Events.deleteLocation model.locationId DeleteFinished )
+
+        DeleteFinished result ->
             ( model, Cmd.none )
 
 
@@ -132,5 +141,8 @@ view model =
         [ viewInputText "Bezeichnung" model.location.name InputName
         , viewTextArea "Adresse" model.location.address InputAddress
         ]
-    , Utils.button "Speichern" ClickedSave
+    , div [ css [Css.displayFlex, Css.flexDirection row]]
+        [ Utils.button "Speichern" ClickedSave
+        , Utils.button "Löschen" ClickedDelete
+        ]
     ]
