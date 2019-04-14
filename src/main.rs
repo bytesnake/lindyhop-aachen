@@ -63,8 +63,25 @@ fn all_events(store: State<Store>) -> Json<events::Store> {
     Json(store.clone())
 }
 
+#[post("/api/events", data = "<new_event>")]
+fn create_event(new_event: Json<Event>, store: State<Store>) -> Json<Id<Event>> {
+    let mut store = store.write().unwrap();
+
+    Json(store.events.insert(new_event.into_inner()))
+}
+
+#[get("/api/events/<uuid>")]
+fn read_event(uuid: Uuid, store: State<Store>) -> Option<Json<Event>> {
+    let store = store.read().unwrap();
+
+    store
+        .events
+        .validate(uuid.into_inner())
+        .map(|id| Json(store.events.get(&id).clone()))
+}
+
 #[put("/api/events/<uuid>", data = "<new_event>")]
-fn put_event(
+fn update_event(
     uuid: Uuid,
     new_event: Json<Event>,
     store: State<Store>,
@@ -81,6 +98,17 @@ fn put_event(
             Json(store.events.get(&id).clone())
         })
         .map_err(|err| NotFound(err))
+}
+
+#[delete("/api/events/<uuid>")]
+fn delete_event(uuid: Uuid, store: State<Store>) -> Result<Json<Event>, NotFound<&'static str>> {
+    let mut store = store.write().unwrap();
+
+    store
+        .events
+        .validate(uuid.into_inner())
+        .ok_or(NotFound("The uuid does not belong to an event."))
+        .map(|id| Json(store.events.remove(&id)))
 }
 
 #[post("/api/locations", data = "<new_location>")]
@@ -119,8 +147,7 @@ fn update_location(
 enum DeleteLocationError {
     #[response(status = 409)]
     DependentEvents(Json<Vec<Id<Event>>>),
-    #[response(status = 404)]
-    InvalidId(&'static str),
+    InvalidId(NotFound<&'static str>),
 }
 
 #[delete("/api/locations/<uuid>")]
@@ -131,7 +158,7 @@ fn delete_location(uuid: Uuid, store: State<Store>) -> Result<Json<Location>, De
     store
         .locations
         .validate(uuid.into_inner())
-        .ok_or(InvalidId("No event was found with the id."))
+        .ok_or(InvalidId(NotFound("No event was found with the id.")))
         .and_then(|id| {
             store
                 .delete_location(&id)
@@ -212,7 +239,10 @@ fn main() {
             routes![
                 index,
                 all_events,
-                put_event,
+                create_event,
+                read_event,
+                update_event,
+                delete_event,
                 create_location,
                 read_location,
                 update_location,
