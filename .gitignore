@@ -2,6 +2,3 @@ node_modules/
 
 /target
 **/*.rs.bk
-
-# Databases
-/count.db
