@@ -297,7 +297,7 @@ decodeOccurrence locs =
         |> Decode.map3
             Occurrence
             (Decode.field "start" Naive.decodeDateTime)
-            (Decode.field "duration" decodeMinutes)
+            (Decode.field "duration" Naive.decodeMinutes)
 
 
 decodeLocation : Decode.Decoder Location

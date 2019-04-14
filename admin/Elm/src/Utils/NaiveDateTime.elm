@@ -14,7 +14,9 @@ module Utils.NaiveDateTime exposing
     , decodeDateTime
     , decodeMinutes
     , encodeAsMinutes
+    , encodeDateAsString
     , encodeDateTime
+    , encodeTimeAsString
     , hour
     , minute
     , minutes
@@ -23,6 +25,7 @@ module Utils.NaiveDateTime exposing
     , setDate
     , setTime
     , timeParser
+    , with
     , year
     )
 
@@ -63,6 +66,11 @@ type BuildError
     = DateError BuildDateError
     | TimeError BuildTimeError
     | DateAndTimeError BuildDateError BuildTimeError
+
+
+with : Date -> Time -> DateTime
+with date time =
+    DateTime date time
 
 
 build : { year : Int, month : Int, day : Int, hour : Int, minute : Int } -> Result BuildError DateTime
@@ -262,7 +270,7 @@ decodeMinutes =
     Decode.int
         |> Decode.andThen
             (\raw ->
-                Naive.minutes raw
+                minutes raw
                     |> Maybe.map Decode.succeed
                     |> Maybe.withDefault (Decode.fail "Invalid duration in minutes.")
             )
@@ -270,6 +278,12 @@ decodeMinutes =
 
 encodeDateTime : DateTime -> Encode.Value
 encodeDateTime dateTime =
+    Encode.string
+        (encodeDateAsString dateTime ++ "T" ++ encodeTimeAsString dateTime)
+
+
+encodeDateAsString : DateTime -> String
+encodeDateAsString dateTime =
     let
         y =
             String.fromInt <| year dateTime
@@ -279,15 +293,20 @@ encodeDateTime dateTime =
 
         d =
             padInt <| day dateTime
+    in
+    y ++ "-" ++ m ++ "-" ++ d
 
+
+encodeTimeAsString : DateTime -> String
+encodeTimeAsString dateTime =
+    let
         h =
             padInt <| hour dateTime
 
         min =
             padInt <| minute dateTime
     in
-    Encode.string
-        (y ++ "-" ++ m ++ "-" ++ d ++ "T" ++ h ++ ":" ++ min ++ ":00")
+    h ++ ":" ++ min ++ ":00"
 
 
 dateTimeParser : Parser DateTime
