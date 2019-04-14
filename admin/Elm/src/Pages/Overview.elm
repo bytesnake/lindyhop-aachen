@@ -137,7 +137,7 @@ viewEvent locations event =
     in
     div []
         [ text event.name
-        , ol [ css [ listStyle ] ] listItems
+        , ol [ css [ listStyle, Css.paddingLeft (em 1) ] ] listItems
         ]
 
 
