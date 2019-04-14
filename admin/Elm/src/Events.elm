@@ -31,7 +31,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
 import Url.Builder
-import Utils.NaiveDateTime as Naive exposing (DateTime)
+import Utils.NaiveDateTime as Naive exposing (DateTime, Duration)
 
 
 type alias Event =
@@ -44,7 +44,7 @@ type alias Event =
 
 type alias Occurrence =
     { start : DateTime
-    , duration : Int
+    , duration : Duration
     , locationId : Id Location
     }
 
@@ -297,7 +297,7 @@ decodeOccurrence locs =
         |> Decode.map3
             Occurrence
             (Decode.field "start" Naive.decodeDateTime)
-            (Decode.field "duration" Decode.int)
+            (Decode.field "duration" decodeMinutes)
 
 
 decodeLocation : Decode.Decoder Location
@@ -326,7 +326,7 @@ encodeOccurrence : Occurrence -> Encode.Value
 encodeOccurrence occurrence =
     Encode.object
         [ ( "start", Naive.encodeDateTime occurrence.start )
-        , ( "duration", Encode.int occurrence.duration )
+        , ( "duration", Naive.encodeAsMinutes occurrence.duration )
         , ( "location_id", IdDict.encodeId occurrence.locationId )
         ]
 
