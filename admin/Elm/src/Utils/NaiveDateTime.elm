@@ -1,7 +1,9 @@
 module Utils.NaiveDateTime exposing
     ( Date
     , DateTime
+    , Duration
     , Time
+    , asMinutes
     , build
     , buildDate
     , buildTime
@@ -10,9 +12,12 @@ module Utils.NaiveDateTime exposing
     , dateTimeParser
     , day
     , decodeDateTime
+    , decodeMinutes
+    , encodeAsMinutes
     , encodeDateTime
     , hour
     , minute
+    , minutes
     , month
     , monthNumeric
     , setDate
@@ -39,6 +44,15 @@ type Date
 
 type Time
     = Time { hour : Int, minute : Int }
+
+
+type Duration
+    = Minutes Int
+
+
+asMinutes : Duration -> Int
+asMinutes (Minutes n) =
+    n
 
 
 
@@ -149,6 +163,15 @@ buildTime v =
             Err InvalidHourAndMinute
 
 
+minutes : Int -> Maybe Duration
+minutes raw =
+    if raw >= 0 then
+        Just <| Minutes raw
+
+    else
+        Nothing
+
+
 
 -- Query
 
@@ -234,6 +257,17 @@ decodeDateTime =
             )
 
 
+decodeMinutes : Decode.Decoder Duration
+decodeMinutes =
+    Decode.int
+        |> Decode.andThen
+            (\raw ->
+                Naive.minutes raw
+                    |> Maybe.map Decode.succeed
+                    |> Maybe.withDefault (Decode.fail "Invalid duration in minutes.")
+            )
+
+
 encodeDateTime : DateTime -> Encode.Value
 encodeDateTime dateTime =
     let
@@ -267,8 +301,9 @@ dateTimeParser =
         |= timeParser
 
 
-
---|. end
+encodeAsMinutes : Duration -> Encode.Value
+encodeAsMinutes (Minutes n) =
+    Encode.int n
 
 
 dateParser : Parser Date
