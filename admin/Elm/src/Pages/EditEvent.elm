@@ -10,7 +10,7 @@ module Pages.EditEvent exposing
     , view
     )
 
-import Css exposing (em, row, zero)
+import Css exposing (em, row, zero, flexStart)
 import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
 import Html.Styled exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
@@ -101,6 +101,7 @@ type OccurrenceMsg
     = InputStartDate String
     | InputStartTime String
     | InputDuration String
+    | InputClickedDelete
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -133,42 +134,48 @@ update msg model =
         InputOccurrence index occurrenceMsg ->
             let
                 newOccurrences occurrences =
-                    List.updateAt index
-                        (\occurrence ->
-                            case occurrenceMsg of
-                                InputDuration rawDuration ->
-                                    case String.toInt rawDuration of
-                                        Just newDuration ->
-                                            { occurrence | duration = newDuration }
+                    let
+                        doUpdate : (Occurrence -> Occurrence) -> List Occurrence
+                        doUpdate updateMapping =
+                            List.updateAt index
+                                updateMapping
+                                occurrences
+                    in
+                    case occurrenceMsg of
+                        InputDuration rawDuration ->
+                            case String.toInt rawDuration of
+                                Just newDuration ->
+                                    doUpdate (\occurrence -> { occurrence | duration = newDuration })
 
-                                        Nothing ->
-                                            occurrence
+                                Nothing ->
+                                    occurrences
 
-                                InputStartDate rawDate ->
-                                    let
-                                        newStart =
-                                            case Parser.run Naive.dateParser rawDate of
-                                                Ok date ->
-                                                    Naive.setDate date occurrence.start
+                        InputStartDate rawDate ->
+                            let
+                                newStart occurrence =
+                                    case Parser.run Naive.dateParser rawDate of
+                                        Ok date ->
+                                            Naive.setDate date occurrence.start
 
-                                                Err _ ->
-                                                    occurrence.start
-                                    in
-                                    { occurrence | start = newStart }
+                                        Err _ ->
+                                            occurrence.start
+                            in
+                            doUpdate (\occurrence -> { occurrence | start = newStart occurrence })
 
-                                InputStartTime rawTime ->
-                                    let
-                                        newStart =
-                                            case Parser.run Naive.timeParser rawTime of
-                                                Ok time ->
-                                                    Naive.setTime time occurrence.start
+                        InputStartTime rawTime ->
+                            let
+                                newStart occurrence =
+                                    case Parser.run Naive.timeParser rawTime of
+                                        Ok time ->
+                                            Naive.setTime time occurrence.start
 
-                                                Err _ ->
-                                                    occurrence.start
-                                    in
-                                    { occurrence | start = newStart }
-                        )
-                        occurrences
+                                        Err _ ->
+                                            occurrence.start
+                            in
+                            doUpdate (\occurrence -> { occurrence | start = newStart occurrence })
+
+                        InputClickedDelete ->
+                            List.removeAt index occurrences
 
                 newModel =
                     updateEvent model
@@ -251,10 +258,15 @@ viewEditOccurrence locations index occurrence =
         location =
             IdDict.get occurrence.locationId locations
 
+        occMsg : OccurrenceMsg -> Msg
+        occMsg subMsg =
+            InputOccurrence index subMsg
+
         occurrenceStyle =
             Css.batch
                 [ Css.displayFlex
                 , Css.flexDirection row
+                , Css.alignItems flexStart
                 , Css.children
                     [ Css.everything
                         [ Css.adjacentSiblings
@@ -271,9 +283,10 @@ viewEditOccurrence locations index occurrence =
     div [ css [ occurrenceStyle ] ]
         [ viewDateTimeInput "Beginn"
             occurrence.start
-            { dateChanged = InputOccurrence index << InputStartDate
-            , timeChanged = InputOccurrence index << InputStartTime
+            { dateChanged = occMsg << InputStartDate
+            , timeChanged = occMsg << InputStartTime
             }
-        , viewInputNumber "Dauer (in Minuten)" occurrence.duration (InputOccurrence index << InputDuration)
+        , viewInputNumber "Dauer (in Minuten)" occurrence.duration (occMsg << InputDuration)
         , labeled "Ort" [ a [ href (Routes.toRelativeUrl <| Routes.Location <| IdDict.encodeIdForUrl occurrence.locationId) ] [ text location.name ] ]
+        , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
