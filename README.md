@@ -10,9 +10,9 @@ To restart the server on changes, use [cargo-watch]:
 cargo watch -x run
 ```
 
-To also recompile the Elm admin:
+To also recompile the Elm admin, there is a ready-made shell script:
 ```bash
-cargo watch -s "cd admin/Elm && yarn build && cd ../.. && cargo run" -i "admin/dist/*" -i "admin/Elm/elm-stuff/**/*" -i "admin/Elm/node_modules/**/*"
+./watch-admin.sh
 ```
 
 [cargo-watch]: https://crates.io/crates/cargo-watch
