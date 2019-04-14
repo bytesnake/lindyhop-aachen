@@ -19,7 +19,16 @@ import Http
 import IdDict exposing (Id)
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils as Utils exposing (viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Pages.Utils as Utils
+    exposing
+        ( In
+        , Input
+        , viewDateTimeInput
+        , inputString
+        , viewInputNumber
+        , viewInputText
+        , viewTextArea
+        )
 import Parser
 import Routes
 import Time
@@ -30,6 +39,21 @@ import Utils.TimeFormat as TimeFormat
 type alias Model =
     { locationId : Id Location
     , location : Location
+    , inputs : LocationInput
+    }
+ 
+
+type alias LocationInput =
+    { name : In String
+    , address : In String
+    }
+
+inputFromLocation : Location -> LocationInput
+inputFromLocation location =
+    {
+        name = inputString location.name
+        , address=inputString location.address
+
     }
 
 
@@ -56,7 +80,10 @@ fromEvents rawId store =
     IdDict.validate rawId locations
         |> Maybe.map
             (\id ->
-                Model id (IdDict.get id locations)
+                let location = IdDict.get id locations
+                    inputs = (inputFromLocation location)
+                in
+                Model id location  inputs
             )
 
 
@@ -138,8 +165,8 @@ view : Model -> List (Html Msg)
 view model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Location <| IdDict.encodeIdForUrl model.locationId)
     , Utils.fields
-        [ viewInputText "Bezeichnung" model.location.name InputName
-        , viewTextArea "Adresse" model.location.address InputAddress
+        [ viewInputText "Bezeichnung" model.inputs.name InputName
+        , viewTextArea "Adresse" model.inputs.address InputAddress
         ]
     , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
         [ Utils.button "Speichern" ClickedSave

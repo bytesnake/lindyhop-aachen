@@ -1,8 +1,16 @@
 module Pages.Utils exposing
-    ( breadcrumbs
+    ( In
+    , Input
+    , breadcrumbs
+    , buildInput
     , button
+    , extract
     , fields
+    , inputDateTime
+    , inputString
     , labeled
+    , updateInput
+    , validate
     , viewDateTimeInput
     , viewInputNumber
     , viewInputText
@@ -13,10 +21,12 @@ import Css exposing (center, column, em, flexStart, none, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
+import Parser
 import Html.Styled.Events exposing (onClick, onInput)
 import Routes exposing (Route)
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
+import Utils.Validate as Validate exposing (Validator)
 
 
 
@@ -70,44 +80,115 @@ breadcrumbs routes current =
 -- Forms
 
 
-viewInputText : String -> String -> (String -> msg) -> Html msg
-viewInputText lbl val inputMsg =
+type Input raw a
+    = Input raw (Validator raw a)
+
+
+buildInput : raw -> Validator raw a -> Input raw a
+buildInput =
+    Input
+
+
+updateInput : (raw -> raw) -> Input raw a -> Input raw a
+updateInput mapping (Input raw validator) =
+    Input (mapping raw) validator
+
+
+validate : Input raw a -> Result (List String) a
+validate (Input raw validator) =
+    Validate.validate validator raw
+
+
+extract : Input raw a -> Maybe a
+extract input =
+    validate input |> Result.toMaybe
+
+
+type alias In a =
+    Input String a
+
+
+inputString : String -> In String
+inputString value =
+    buildInput value Validate.accept
+
+
+inputDateTime : Naive.DateTime -> Input { date : String, time : String } Naive.DateTime
+inputDateTime dateTime =
+    let
+        value =
+            { date = Naive.encodeDateAsString dateTime, time = Naive.encodeTimeAsString dateTime }
+
+        validator =
+            Validate.from
+                (\{ date, time } ->
+                    let
+                        dateResult =
+                            Parser.run Naive.dateParser date |> Result.mapError (\err -> [ "Das Datum ist ungültig." ])
+
+                        timeResult =
+                            Parser.run Naive.timeParser time |> Result.mapError (\err -> [ "Die Uhrzeit ist ungültig." ])
+                    in
+                    Validate.map2
+                        Naive.with
+                        dateResult
+                        timeResult
+                )
+    in
+    buildInput value validator
+
+
+viewInputText : String -> In a -> (String -> msg) -> Html msg
+viewInputText lbl (Input val validator) inputMsg =
     labeled lbl
-        [ input [ type_ "text", value val, onInput inputMsg ] []
-        ]
+        ([ input [ type_ "text", value val, onInput inputMsg ] [] ]
+            ++ viewErrors (Input val validator)
+        )
 
 
-viewInputNumber : String -> Int -> (String -> msg) -> Html msg
-viewInputNumber lbl val inputMsg =
+viewInputNumber : String -> In a -> (String -> msg) -> Html msg
+viewInputNumber lbl (Input val validator) inputMsg =
     labeled lbl
-        [ input [ type_ "number", value <| String.fromInt val, onInput inputMsg ] []
-        ]
+        ([ input [ type_ "number", value val, onInput inputMsg ] [] ]
+            ++ viewErrors (Input val validator)
+        )
 
 
-viewTextArea : String -> String -> (String -> msg) -> Html msg
-viewTextArea lbl val inputMsg =
+viewTextArea : String -> In String -> (String -> msg) -> Html msg
+viewTextArea lbl (Input val validator) inputMsg =
     labeled lbl
-        [ textarea [ value val, onInput inputMsg ] []
-        ]
+        ([ textarea [ value val, onInput inputMsg ] []
+         ]
+            ++ viewErrors (Input val validator)
+        )
 
 
 viewDateTimeInput :
     String
-    -> Naive.DateTime
+    -> Input { date : String, time : String } Naive.DateTime
     -> { dateChanged : String -> msg, timeChanged : String -> msg }
     -> Html msg
-viewDateTimeInput lbl val toMsgs =
-    let
-        date =
-            TimeFormat.dateIso val
-
-        time =
-            TimeFormat.time val
-    in
+viewDateTimeInput lbl (Input { date, time } validator) toMsgs =
     labeled lbl
-        [ input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
-        , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
-        ]
+        ([ input [ type_ "date", value date, onInput toMsgs.dateChanged ] []
+         , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
+         ]
+            ++ viewErrors (Input { date = date, time = time } validator)
+        )
+
+
+viewErrors : Input raw a -> List (Html msg)
+viewErrors (Input val validator) =
+    let
+        errors =
+            Validate.errors validator val
+    in
+    case errors of
+        [] ->
+            []
+
+        _ ->
+            [ ol [] (List.map (\error -> li [] [ text error ]) errors) ]
 
 
 labeled : String -> List (Html msg) -> Html msg

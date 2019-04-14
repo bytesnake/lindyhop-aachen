@@ -10,7 +10,7 @@ module Pages.EditEvent exposing
     , view
     )
 
-import Css exposing (em, row, zero, flexStart)
+import Css exposing (em, flexStart, row, zero)
 import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
 import Html.Styled exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
@@ -20,19 +20,126 @@ import Http
 import IdDict exposing (Id)
 import Json.Encode as Encode
 import List.Extra as List
-import Pages.Utils as Utils exposing (fields, labeled, viewDateTimeInput, viewInputNumber, viewInputText, viewTextArea)
+import Maybe.Extra as Maybe
+import Pages.Utils as Utils
+    exposing
+        ( In
+        , Input
+        , extract
+        , fields
+        , inputDateTime
+        , inputString
+        , labeled
+        , updateInput
+        , viewDateTimeInput
+        , viewInputNumber
+        , viewInputText
+        , viewTextArea
+        )
 import Parser
 import Routes
 import Time
-import Utils.NaiveDateTime as Naive
+import Utils.NaiveDateTime as Naive exposing (Duration)
 import Utils.TimeFormat as TimeFormat
+import Utils.Validate as Validate
 
 
 type alias Model =
     { eventId : Id Event
     , event : Event
+    , inputs : EventInput
     , locations : Locations
     }
+
+
+type alias EventInput =
+    { name : In String
+    , teaser : In String
+    , description : In String
+    , occurrences : List OccurrenceInput
+    }
+
+
+type alias OccurrenceInput =
+    { start : Input { date : String, time : String } Naive.DateTime
+    , duration : In Duration
+    , locationId : In (Id Location)
+    }
+
+
+eventFromInputs : Locations -> EventInput -> Maybe Event
+eventFromInputs locs inputs =
+    let
+        maybeOccurrences =
+            Maybe.combine (List.map (occurrenceFromInput locs) inputs.occurrences)
+    in
+    Maybe.map4 Event
+        (extract inputs.name)
+        (extract inputs.teaser)
+        (extract inputs.description)
+        maybeOccurrences
+
+
+occurrenceFromInput : Locations -> OccurrenceInput -> Maybe Occurrence
+occurrenceFromInput locs input =
+    Maybe.map3
+        Occurrence
+        (extract input.start)
+        (extract input.duration)
+        (extract input.locationId)
+
+
+inputsFromEvent : Locations -> Event -> EventInput
+inputsFromEvent locations event =
+    let
+        inputFromOccurrence : Occurrence -> OccurrenceInput
+        inputFromOccurrence occurrence =
+            { start = inputDateTime occurrence.start
+            , duration = inputDuration occurrence.duration
+            , locationId = inputLocationId locations occurrence.locationId
+            }
+    in
+    { name = inputString event.name
+    , teaser = inputString event.teaser
+    , description = inputString event.description
+    , occurrences = List.map inputFromOccurrence event.occurrences
+    }
+
+
+inputDuration : Duration -> In Duration
+inputDuration duration =
+    let
+        value =
+            Naive.asMinutes duration |> String.fromInt
+
+        validator =
+            Validate.from
+                (\raw ->
+                    String.toInt raw
+                        |> Result.fromMaybe [ "Bitte eine Zahl eingeben." ]
+                        |> Result.andThen
+                            (Naive.minutes
+                                >> Result.fromMaybe [ "Die Dauer darf nicht negativ sein." ]
+                            )
+                )
+    in
+    Utils.buildInput value validator
+
+
+inputLocationId : Locations -> Id Location -> In (Id Location)
+inputLocationId locations id =
+    let
+        value =
+            IdDict.encodeIdForUrl id
+
+        validator =
+            Validate.from
+                (\raw ->
+                    IdDict.validate raw locations
+                        |> Result.fromMaybe [ "Der gewählte Ort konnte nicht gefunden werden." ]
+                )
+    in
+    Utils.buildInput value validator
 
 
 type alias LoadModel =
@@ -61,7 +168,14 @@ fromEvents rawId store =
     IdDict.validate rawId events
         |> Maybe.map
             (\id ->
-                Model id (IdDict.get id events) locations
+                let
+                    event =
+                        IdDict.get id events
+
+                    inputs =
+                        inputsFromEvent locations event
+                in
+                Model id event inputs locations
             )
 
 
@@ -106,12 +220,16 @@ type OccurrenceMsg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        setInput new input =
+            updateInput (\_ -> new) input
+    in
     case msg of
         InputName newName ->
             let
                 newModel =
                     updateEvent model
-                        (\event -> { event | name = newName })
+                        (\event -> { event | name = setInput newName event.name })
             in
             ( newModel, Cmd.none )
 
@@ -119,7 +237,7 @@ update msg model =
             let
                 newModel =
                     updateEvent model
-                        (\event -> { event | teaser = newTeaser })
+                        (\event -> { event | teaser = setInput newTeaser event.teaser })
             in
             ( newModel, Cmd.none )
 
@@ -127,7 +245,7 @@ update msg model =
             let
                 newModel =
                     updateEvent model
-                        (\event -> { event | description = newDescription })
+                        (\event -> { event | description = setInput newDescription event.description })
             in
             ( newModel, Cmd.none )
 
@@ -135,53 +253,41 @@ update msg model =
             let
                 newOccurrences occurrences =
                     let
-                        doUpdate : (Occurrence -> Occurrence) -> List Occurrence
+                        doUpdate : (OccurrenceInput -> OccurrenceInput) -> List OccurrenceInput
                         doUpdate updateMapping =
                             List.updateAt index
                                 updateMapping
                                 occurrences
                     in
                     case occurrenceMsg of
-                        InputDuration rawDuration ->
-                            case String.toInt rawDuration of
-                                Just newDuration ->
-                                    doUpdate (\occurrence -> { occurrence | duration = newDuration })
+                        InputDuration newDuration ->
+                            doUpdate (\occurrence -> { occurrence | duration = setInput newDuration occurrence.duration })
 
-                                Nothing ->
-                                    occurrences
+                        InputStartDate newDate ->
+                            doUpdate
+                                (\occurrence ->
+                                    let
+                                        newStart oldStart =
+                                            { oldStart | date = newDate }
+                                    in
+                                    { occurrence | start = updateInput newStart occurrence.start }
+                                )
 
-                        InputStartDate rawDate ->
-                            let
-                                newStart occurrence =
-                                    case Parser.run Naive.dateParser rawDate of
-                                        Ok date ->
-                                            Naive.setDate date occurrence.start
-
-                                        Err _ ->
-                                            occurrence.start
-                            in
-                            doUpdate (\occurrence -> { occurrence | start = newStart occurrence })
-
-                        InputStartTime rawTime ->
-                            let
-                                newStart occurrence =
-                                    case Parser.run Naive.timeParser rawTime of
-                                        Ok time ->
-                                            Naive.setTime time occurrence.start
-
-                                        Err _ ->
-                                            occurrence.start
-                            in
-                            doUpdate (\occurrence -> { occurrence | start = newStart occurrence })
+                        InputStartTime newTime ->
+                            doUpdate
+                                (\occurrence ->
+                                    let
+                                        newStart oldStart =
+                                            { oldStart | time = newTime }
+                                    in
+                                    { occurrence | start = updateInput newStart occurrence.start }
+                                )
 
                         InputClickedDelete ->
                             List.removeAt index occurrences
 
                 newModel =
-                    updateEvent model
-                        (\event ->
-                            { event | occurrences = newOccurrences event.occurrences }
-                        )
+                    updateOccurrences model newOccurrences
             in
             ( newModel, Cmd.none )
 
@@ -198,25 +304,37 @@ update msg model =
             ( model, Cmd.none )
 
 
-updateEvent : Model -> (Event -> Event) -> Model
+updateEvent : Model -> (EventInput -> EventInput) -> Model
 updateEvent model eventUpdater =
     let
-        event =
-            model.event
-
         newEvent =
-            eventUpdater event
+            eventUpdater model.inputs
     in
-    { model | event = newEvent }
+    { model | inputs = newEvent }
+
+
+updateOccurrences : Model -> (List OccurrenceInput -> List OccurrenceInput) -> Model
+updateOccurrences model occurrencesUpdater =
+    let
+        newOccurrences =
+            occurrencesUpdater model.inputs.occurrences
+
+        inputs =
+            model.inputs
+
+        newInputs =
+            { inputs | occurrences = newOccurrences }
+    in
+    { model | inputs = newInputs }
 
 
 view : Model -> List (Html Msg)
 view model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Event <| IdDict.encodeIdForUrl model.eventId)
     , fields
-        [ viewInputText "Titel" model.event.name InputName
-        , viewInputText "Teaser" model.event.teaser InputTeaser
-        , viewTextArea "Beschreibung" model.event.description InputDescription
+        [ viewInputText "Titel" model.inputs.name InputName
+        , viewInputText "Teaser" model.inputs.teaser InputTeaser
+        , viewTextArea "Beschreibung" model.inputs.description InputDescription
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
@@ -224,10 +342,15 @@ view model =
             (\index occurrence ->
                 li [] [ viewEditOccurrence model.locations index occurrence ]
             )
-            model.event.occurrences
+            model.inputs.occurrences
         )
     , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-        [ Utils.button "Speichern" ClickedSave
+        [ case eventFromInputs model.locations model.inputs of
+            Just event ->
+                Utils.button "Speichern" ClickedSave
+
+            Nothing ->
+                text "Invalid"
         , Utils.button "Löschen" ClickedDelete
         ]
     ]
@@ -249,15 +372,9 @@ spreadListItemStyle =
         ]
 
 
-viewEditOccurrence : Locations -> Int -> Occurrence -> Html Msg
+viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html Msg
 viewEditOccurrence locations index occurrence =
     let
-        time =
-            TimeFormat.time occurrence.start
-
-        location =
-            IdDict.get occurrence.locationId locations
-
         occMsg : OccurrenceMsg -> Msg
         occMsg subMsg =
             InputOccurrence index subMsg
@@ -287,6 +404,24 @@ viewEditOccurrence locations index occurrence =
             , timeChanged = occMsg << InputStartTime
             }
         , viewInputNumber "Dauer (in Minuten)" occurrence.duration (occMsg << InputDuration)
-        , labeled "Ort" [ a [ href (Routes.toRelativeUrl <| Routes.Location <| IdDict.encodeIdForUrl occurrence.locationId) ] [ text location.name ] ]
+        , case extract occurrence.locationId of
+            Just id ->
+                let
+                    location =
+                        IdDict.get id locations
+                in
+                labeled "Ort"
+                    [ a
+                        [ href
+                            (Routes.toRelativeUrl <|
+                                Routes.Location <|
+                                    IdDict.encodeIdForUrl id
+                            )
+                        ]
+                        [ text location.name ]
+                    ]
+
+            Nothing ->
+                text "Invalid."
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
