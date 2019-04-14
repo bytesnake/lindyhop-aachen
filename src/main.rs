@@ -16,7 +16,8 @@ use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::uuid::Uuid;
 
-use events::{Event, Events, Location, Locations, Occurrence, RefEvent};
+use events::{Event, Events, Location, Locations, Occurrence};
+use id_map::Id;
 
 #[get("/")]
 fn index(store: State<Store>) -> Markup {
@@ -44,8 +45,15 @@ fn render_event(event: &Event, locations: &Locations) -> Markup {
 }
 
 fn render_occurrence(occurrence: &Occurrence, locations: &Locations) -> Markup {
+    let maybe_location = locations
+        .validate(occurrence.location_id)
+        .map(|id| locations.get(&id));
+
     html! {
-        (occurrence.start.format("%d.%m.%Y %H:%M")) " - " (locations.get(&occurrence.location_id).name)
+        (occurrence.start.format("%d.%m.%Y %H:%M")) " - " @match maybe_location {
+            Some(location) => (location.name),
+            None => "Steht noch nicht fest."
+        }
     }
 }
 
@@ -58,7 +66,7 @@ fn all_events(store: State<Store>) -> Json<events::Store> {
 #[put("/api/events/<uuid>", data = "<new_event>")]
 fn put_event(
     uuid: Uuid,
-    new_event: Json<RefEvent>,
+    new_event: Json<Event>,
     store: State<Store>,
 ) -> Result<Json<Event>, NotFound<&'static str>> {
     let mut store = store.write().unwrap();
@@ -67,22 +75,33 @@ fn put_event(
         .events
         .validate(uuid.into_inner())
         .ok_or("The uuid does not belong to an event.")
-        .and_then(|id| {
-            new_event
-                .into_inner()
-                .resolve(&store.locations)
-                .ok_or("An occurrence had an invalid location_id.")
-                .map(|event| {
-                    store.events.set(id, event);
+        .map(|id| {
+            store.events.set(id, new_event.into_inner());
 
-                    Json(store.events.get(&id).clone())
-                })
+            Json(store.events.get(&id).clone())
         })
         .map_err(|err| NotFound(err))
 }
 
+#[post("/api/locations", data = "<new_location>")]
+fn create_location(new_location: Json<Location>, store: State<Store>) -> Json<Id<Location>> {
+    let mut store = store.write().unwrap();
+
+    Json(store.locations.insert(new_location.into_inner()))
+}
+
+#[get("/api/locations/<uuid>")]
+fn read_location(uuid: Uuid, store: State<Store>) -> Option<Json<Location>> {
+    let store = store.read().unwrap();
+
+    store
+        .locations
+        .validate(uuid.into_inner())
+        .map(|id| Json(store.locations.get(&id).clone()))
+}
+
 #[put("/api/locations/<uuid>", data = "<new_location>")]
-fn put_location(
+fn update_location(
     uuid: Uuid,
     new_location: Json<Location>,
     store: State<Store>,
@@ -94,6 +113,31 @@ fn put_location(
 
         Json(store.locations.get(&id).clone())
     })
+}
+
+#[derive(Responder, Debug)]
+enum DeleteLocationError {
+    #[response(status = 409)]
+    DependentEvents(Json<Vec<Id<Event>>>),
+    #[response(status = 404)]
+    InvalidId(&'static str),
+}
+
+#[delete("/api/locations/<uuid>")]
+fn delete_location(uuid: Uuid, store: State<Store>) -> Result<Json<Location>, DeleteLocationError> {
+    let mut store = store.write().unwrap();
+
+    use DeleteLocationError::*;
+    store
+        .locations
+        .validate(uuid.into_inner())
+        .ok_or(InvalidId("No event was found with the id."))
+        .and_then(|id| {
+            store
+                .delete_location(&id)
+                .map_err(|dependent_events| DependentEvents(Json(dependent_events)))
+        })
+        .map(|location| Json(location))
 }
 
 #[get("/admin")]
@@ -133,12 +177,12 @@ fn main() {
             Occurrence {
                 start: NaiveDate::from_ymd(2019, 4, 1).and_hms(20, 30, 00),
                 duration: 90,
-                location_id: chico_id.clone(),
+                location_id: chico_id.to_unsafe(),
             },
             Occurrence {
                 start: NaiveDate::from_ymd(2019, 4, 8).and_hms(20, 30, 00),
                 duration: 90,
-                location_id: sencillito_id.clone(),
+                location_id: sencillito_id.to_unsafe(),
             },
         ],
     });
@@ -151,25 +195,28 @@ fn main() {
             Occurrence {
                 start: NaiveDate::from_ymd(2019, 4, 1).and_hms(19, 45, 00),
                 duration: 45,
-                location_id: chico_id.clone(),
+                location_id: chico_id.to_unsafe(),
             },
             Occurrence {
                 start: NaiveDate::from_ymd(2019, 4, 8).and_hms(20, 30, 00),
                 duration: 90,
-                location_id: sencillito_id.clone(),
+                location_id: sencillito_id.to_unsafe(),
             },
         ],
     });
 
     rocket::ignite()
-        .manage(RwLock::new(events::Store { locations, events }))
+        .manage(RwLock::new(events::Store::from(locations, events)))
         .mount(
             "/",
             routes![
                 index,
                 all_events,
                 put_event,
-                put_location,
+                create_location,
+                read_location,
+                update_location,
+                delete_location,
                 admin_route,
                 admin_subroute
             ],

@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdMap<I>(HashMap<UnsafeId, I>);
 
 impl<I> IdMap<I> {
@@ -23,16 +23,24 @@ impl<I> IdMap<I> {
         Id::init(uuid)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (Id<I>, &I)> {
+        self.0.iter().map(|(k, v)| (Id::init(*k), v))
+    }
+
     pub fn values(&self) -> impl Iterator<Item = &I> {
         self.0.values()
     }
 
     pub fn get(&self, id: &Id<I>) -> &I {
-        self.0.get(&id.raw).expect("The location id was invalid.")
+        self.0.get(&id.raw).expect("The id was invalid.")
     }
 
     pub fn set(&mut self, id: Id<I>, new_item: I) {
         self.0.insert(id.raw, new_item);
+    }
+
+    pub fn remove(&mut self, id: &Id<I>) -> I {
+        self.0.remove(&id.raw).expect("The id was invalid.")
     }
 
     pub fn validate(&self, unsafe_id: UnsafeId) -> Option<(Id<I>)> {
@@ -44,7 +52,7 @@ impl<I> IdMap<I> {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(transparent)]
 pub struct Id<T> {
     raw: Uuid,
@@ -88,5 +96,9 @@ impl<T> Id<T> {
             raw,
             phantom: PhantomData,
         }
+    }
+
+    pub fn to_unsafe(&self) -> UnsafeId {
+        self.raw.clone()
     }
 }

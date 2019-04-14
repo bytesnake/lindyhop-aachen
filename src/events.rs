@@ -7,7 +7,7 @@ use super::id_map::{Id, IdMap, UnsafeId};
 
 // Types
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Event {
     pub name: String,
     pub teaser: String,
@@ -15,96 +15,93 @@ pub struct Event {
     pub occurrences: Vec<Occurrence>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
-    pub location_id: Id<Location>,
+    pub location_id: UnsafeId,
 }
 
 type Duration = u64;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Location {
     pub name: String,
     pub address: String,
 }
 
-pub type Locations = IdMap<Location>;
+pub type Locations = IdMapCru<Location>;
 
 pub type Events = IdMap<Event>;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Store {
     pub locations: Locations,
     pub events: Events,
 }
 
 impl Store {
-    fn resolve(locations: Locations, ref_events: HashMap<UnsafeId, RefEvent>) -> Option<Store> {
-        let maybe_events: Option<HashMap<UnsafeId, Event>> = ref_events
-            .into_iter()
-            .map(|(key, ref_event)| ref_event.resolve(&locations).map(|event| (key, event)))
-            .collect();
-
-        maybe_events.map(|events| Store {
+    pub fn from(locations: Locations, events: Events) -> Store {
+        Store {
             locations: locations,
-            events: IdMap::init(events),
-        })
+            events: events,
+        }
     }
-}
 
-#[derive(Deserialize)]
-pub struct RefStore {
-    pub locations: Locations,
-    pub ref_events: HashMap<UnsafeId, RefEvent>,
-}
+    pub fn delete_location(&mut self, id: &Id<Location>) -> Result<Location, Vec<Id<Event>>> {
+        let dependent_events: Vec<Id<Event>> = self
+            .events
+            .iter()
+            .filter_map(|(event_id, event)| {
+                let refers_to_location = event
+                    .occurrences
+                    .iter()
+                    .any(|occurrence| occurrence.location_id == id.to_unsafe());
 
-#[derive(Deserialize)]
-pub struct RefEvent {
-    pub name: String,
-    pub teaser: String,
-    pub description: String,
-    pub occurrences: Vec<RefOccurrence>,
-}
-
-impl RefEvent {
-    pub fn resolve(self, locations: &Locations) -> Option<Event> {
-        let name = self.name;
-        let teaser = self.teaser;
-        let description = self.description;
-
-        let maybe_occurrences: Option<Vec<Occurrence>> = self
-            .occurrences
-            .into_iter()
-            .map(|occurrence| occurrence.resolve(locations))
+                if refers_to_location {
+                    Some(event_id)
+                } else {
+                    None
+                }
+            })
             .collect();
 
-        maybe_occurrences.map(|occurrences| Event {
-            name,
-            teaser,
-            description,
-            occurrences,
-        })
+        if dependent_events.len() > 0 {
+            Err(dependent_events)
+        } else {
+            Ok(self.locations.0.remove(&id))
+        }
     }
 }
 
-#[derive(Deserialize)]
-pub struct RefOccurrence {
-    pub start: NaiveDateTime,
-    pub duration: Duration,
-    #[serde(rename = "location_id")]
-    pub unsafe_location_id: UnsafeId,
-}
+#[derive(Serialize, Clone, Debug)]
+pub struct IdMapCru<I>(IdMap<I>);
 
-impl RefOccurrence {
-    pub fn resolve(self, locations: &Locations) -> Option<Occurrence> {
-        locations
-            .validate(self.unsafe_location_id)
-            .map(|location_id| Occurrence {
-                start: self.start,
-                duration: self.duration,
-                location_id,
-            })
+impl<I> IdMapCru<I> {
+    pub fn new() -> IdMapCru<I> {
+        IdMapCru(IdMap::new())
+    }
+    pub fn init(raw: HashMap<UnsafeId, I>) -> IdMap<I> {
+        IdMap::init(raw)
+    }
+
+    pub fn insert(&mut self, item: I) -> Id<I> {
+        self.0.insert(item)
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &I> {
+        self.0.values()
+    }
+
+    pub fn get(&self, id: &Id<I>) -> &I {
+        self.0.get(id)
+    }
+
+    pub fn set(&mut self, id: Id<I>, new_item: I) {
+        self.0.set(id, new_item);
+    }
+
+    pub fn validate(&self, unsafe_id: UnsafeId) -> Option<(Id<I>)> {
+        self.0.validate(unsafe_id)
     }
 }
