@@ -41,7 +41,7 @@ import Routes
 import Time
 import Utils.NaiveDateTime as Naive exposing (Duration)
 import Utils.TimeFormat as TimeFormat
-import Utils.Validate as Validate
+import Utils.Validate as Validate exposing (Validator)
 
 
 type alias Model =
@@ -111,19 +111,21 @@ inputDuration duration =
     let
         value =
             Naive.asMinutes duration |> String.fromInt
-
-        validator =
-            Validate.from
-                (\raw ->
-                    String.toInt raw
-                        |> Result.fromMaybe [ "Bitte eine Zahl eingeben." ]
-                        |> Result.andThen
-                            (Naive.minutes
-                                >> Result.fromMaybe [ "Die Dauer darf nicht negativ sein." ]
-                            )
-                )
     in
-    Utils.buildInput value validator
+    Utils.buildInput value durationValidator
+
+
+durationValidator : Validator String Duration
+durationValidator =
+    Validate.from
+        (\raw ->
+            String.toInt raw
+                |> Result.fromMaybe [ "Bitte eine Zahl eingeben." ]
+                |> Result.andThen
+                    (Naive.minutes
+                        >> Result.fromMaybe [ "Die Dauer darf nicht negativ sein." ]
+                    )
+        )
 
 
 inputLocationId : Locations -> Id Location -> In (Id Location)
@@ -131,15 +133,17 @@ inputLocationId locations id =
     let
         value =
             IdDict.encodeIdForUrl id
-
-        validator =
-            Validate.from
-                (\raw ->
-                    IdDict.validate raw locations
-                        |> Result.fromMaybe [ "Der gewählte Ort konnte nicht gefunden werden." ]
-                )
     in
-    Utils.buildInput value validator
+    Utils.buildInput value (locationIdValidator locations)
+
+
+locationIdValidator : Locations -> Validator String (Id Location)
+locationIdValidator locations =
+    Validate.from
+        (\raw ->
+            IdDict.validate raw locations
+                |> Result.fromMaybe [ "Der gewählte Ort konnte nicht gefunden werden." ]
+        )
 
 
 type alias LoadModel =
@@ -205,6 +209,7 @@ type Msg
     | InputTeaser String
     | InputDescription String
     | InputOccurrence Int OccurrenceMsg
+    | AddOccurrence
     | ClickedSave
     | SaveFinished (Result Http.Error ())
     | ClickedDelete
@@ -291,6 +296,21 @@ update msg model =
             in
             ( newModel, Cmd.none )
 
+        AddOccurrence ->
+            let
+                newOccurrences occurrences =
+                    occurrences
+                        ++ [ { start = Utils.buildInput { date = "", time = "" } Utils.dateTimeValidator
+                             , duration = Utils.buildInput "" durationValidator
+                             , locationId = Utils.buildInput "" (locationIdValidator model.locations)
+                             }
+                           ]
+
+                newModel =
+                    updateOccurrences model newOccurrences
+            in
+            ( newModel, Cmd.none )
+
         ClickedSave ->
             let
                 cmd =
@@ -352,6 +372,7 @@ view model =
                 li [] [ viewEditOccurrence model.locations index occurrence ]
             )
             model.inputs.occurrences
+            ++ [ Utils.button "Neuer Termin" AddOccurrence ]
         )
     , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
         [ let
