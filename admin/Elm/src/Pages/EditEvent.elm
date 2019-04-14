@@ -457,6 +457,10 @@ viewEditOccurrence locations index occurrence =
             options =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
+          div [] ([
           Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
+        ] ++ case extract occurrence.locationId of
+            Just id -> [a [href <| Routes.toRelativeUrl <| Routes.Location (IdDict.encodeIdForUrl id)] [text "Bearbeiten" ]]
+            Nothing -> [])
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
