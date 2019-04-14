@@ -1,4 +1,4 @@
-module IdDict exposing (Id, IdDict, decodeIdDict, encodeId, encodeIdForUrl, from, get, map, validate)
+module IdDict exposing (Id, IdDict, UnsafeId, decodeIdDict, decodeUnsafeId, encodeId, encodeIdForUrl, from, get, map, validate)
 
 import Dict exposing (Dict)
 import Json.Decode as Decode
@@ -20,7 +20,7 @@ get (Id rawId) (IdDict default dict) =
         |> Maybe.withDefault default
 
 
-validate : String -> IdDict a -> Maybe (Id a)
+validate : UnsafeId -> IdDict a -> Maybe (Id a)
 validate rawId (IdDict _ dict) =
     if Dict.member rawId dict then
         Just (Id rawId)
@@ -45,6 +45,15 @@ decodeIdDict default decodeItem =
 -}
 type Id a
     = Id String
+
+
+type alias UnsafeId =
+    String
+
+
+decodeUnsafeId : Decode.Decoder UnsafeId
+decodeUnsafeId =
+    Decode.string
 
 
 encodeIdForUrl : Id a -> String
