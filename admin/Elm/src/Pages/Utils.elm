@@ -21,8 +21,8 @@ import Css exposing (center, column, em, flexStart, none, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
-import Parser
 import Html.Styled.Events exposing (onClick, onInput)
+import Parser
 import Routes exposing (Route)
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -110,7 +110,7 @@ type alias In a =
 
 inputString : String -> In String
 inputString value =
-    buildInput value Validate.accept
+    buildInput value (Validate.ifEmpty "Darf nicht leer sein.")
 
 
 inputDateTime : Naive.DateTime -> Input { date : String, time : String } Naive.DateTime
