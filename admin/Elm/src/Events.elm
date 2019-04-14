@@ -1,6 +1,6 @@
 module Events exposing
     ( Event, Occurrence, Location, Store, Events, Locations
-    , fetchEvents, updateEvent, createLocation, readLocation,updateLocation, deleteLocation
+    , fetchEvents, createEvent, readEvent, updateEvent, deleteEvent, createLocation, readLocation, updateLocation, deleteLocation
     , locations, events, mapEvents, mapLocations
     )
 
@@ -14,7 +14,7 @@ module Events exposing
 
 # API
 
-@docs fetchEvents, updateEvent, createLocation, readLocation, updateLocation, deleteLocation
+@docs fetchEvents, createEvent, readEvent, updateEvent, deleteEvent, createLocation, readLocation, updateLocation, deleteLocation
 
 
 # Access
@@ -26,7 +26,7 @@ module Events exposing
 import Dict exposing (Dict)
 import Dict.Extra as Dict
 import Http
-import IdDict exposing (Id, IdDict)
+import IdDict exposing (Id, IdDict, UnsafeId, decodeUnsafeId)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
@@ -170,6 +170,26 @@ fetchEvents toMsg =
         }
 
 
+createEvent : Event -> (Result Http.Error UnsafeId -> msg) -> Cmd msg
+createEvent event toMsg =
+    apiRequest
+        { method = Post
+        , url = [ "events" ]
+        , body = Just <| encodeEvent event
+        , expect = Http.expectJson toMsg decodeUnsafeId
+        }
+
+
+readEvent : Locations -> Id Event -> (Result Http.Error Event -> msg) -> Cmd msg
+readEvent locs id toMsg =
+    apiRequest
+        { method = Get
+        , url = [ "events", IdDict.encodeIdForUrl id ]
+        , body = Nothing
+        , expect = Http.expectJson toMsg (decodeEvent locs)
+        }
+
+
 updateEvent : Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
 updateEvent id event toMsg =
     apiRequest
@@ -180,23 +200,35 @@ updateEvent id event toMsg =
         }
 
 
-createLocation : Location -> (Result Http.Error Location-> msg) -> Cmd msg
+deleteEvent : Locations -> Id Event -> (Result Http.Error Event -> msg) -> Cmd msg
+deleteEvent locs id toMsg =
+    apiRequest
+        { method = Delete
+        , url = [ "events", IdDict.encodeIdForUrl id ]
+        , body = Nothing
+        , expect = Http.expectJson toMsg (decodeEvent locs)
+        }
+
+
+createLocation : Location -> (Result Http.Error UnsafeId -> msg) -> Cmd msg
 createLocation location toMsg =
     apiRequest
         { method = Post
         , url = [ "locations" ]
         , body = Just <| encodeLocation location
-        , expect = Http.expectJson toMsg decodeLocation
+        , expect = Http.expectJson toMsg decodeUnsafeId
         }
+
 
 readLocation : Id Location -> (Result Http.Error Location -> msg) -> Cmd msg
 readLocation id toMsg =
-    apiRequest{
-        method= Get,
-        url = ["locations", IdDict.encodeIdForUrl id]
+    apiRequest
+        { method = Get
+        , url = [ "locations", IdDict.encodeIdForUrl id ]
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
-    }
+        }
+
 
 updateLocation : Id Location -> Location -> (Result Http.Error () -> msg) -> Cmd msg
 updateLocation id location toMsg =
@@ -207,14 +239,16 @@ updateLocation id location toMsg =
         , expect = Http.expectWhatever toMsg
         }
 
+
 deleteLocation : Id Location -> (Result Http.Error Location -> msg) -> Cmd msg
 deleteLocation id toMsg =
-    apiRequest {
-        method = Delete,
-        url = ["locations", IdDict.encodeIdForUrl id]
+    apiRequest
+        { method = Delete
+        , url = [ "locations", IdDict.encodeIdForUrl id ]
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
-    }
+        }
+
 
 
 -- Decode
@@ -250,10 +284,10 @@ decodeEvent locs =
 
 decodeOccurrence : IdDict Location -> Decode.Decoder Occurrence
 decodeOccurrence locs =
-    Decode.field "location_id" Decode.string
+    Decode.field "location_id" decodeUnsafeId
         |> Decode.andThen
-            (\rawId ->
-                case IdDict.validate rawId locs of
+            (\unsafeId ->
+                case IdDict.validate unsafeId locs of
                     Just id ->
                         Decode.succeed id
 
