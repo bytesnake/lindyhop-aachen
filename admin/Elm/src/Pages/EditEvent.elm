@@ -92,7 +92,9 @@ type Msg
     | InputDescription String
     | InputOccurrence Int OccurrenceMsg
     | ClickedSave
-    | SentEvent (Result Http.Error ())
+    | SaveFinished (Result Http.Error ())
+    | ClickedDelete
+    | DeleteFinished (Result Http.Error Event)
 
 
 type OccurrenceMsg
@@ -177,9 +179,15 @@ update msg model =
             ( newModel, Cmd.none )
 
         ClickedSave ->
-            ( model, Events.updateEvent model.eventId model.event SentEvent )
+            ( model, Events.updateEvent model.eventId model.event SaveFinished )
 
-        SentEvent result ->
+        SaveFinished result ->
+            ( model, Cmd.none )
+
+        ClickedDelete ->
+            ( model, Events.deleteEvent model.locations model.eventId DeleteFinished )
+
+        DeleteFinished result ->
             ( model, Cmd.none )
 
 
@@ -211,7 +219,10 @@ view model =
             )
             model.event.occurrences
         )
-    , Utils.button "Speichern" ClickedSave
+    , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
+        [ Utils.button "Speichern" ClickedSave
+        , Utils.button "Löschen" ClickedDelete
+        ]
     ]
 
 
