@@ -1,12 +1,12 @@
 module Pages.Utils exposing
     ( Enabledness(..)
     , In
-    , dateTimeValidator
     , Input
     , breadcrumbs
     , buildInput
     , button
     , buttonWithOptions
+    , dateTimeValidator
     , extract
     , fields
     , inputDateTime
@@ -17,6 +17,7 @@ module Pages.Utils exposing
     , viewDateTimeInput
     , viewInputNumber
     , viewInputText
+    , viewSelection
     , viewTextArea
     )
 
@@ -159,13 +160,39 @@ viewInputNumber lbl (Input val validator) inputMsg =
         )
 
 
-viewTextArea : String -> In String -> (String -> msg) -> Html msg
+viewTextArea : String -> In a -> (String -> msg) -> Html msg
 viewTextArea lbl (Input val validator) inputMsg =
     labeled lbl
         ([ textarea [ value val, onInput inputMsg ] []
          ]
             ++ viewErrors (Input val validator)
         )
+
+
+viewSelection : String -> In a -> List { name : String, value : String } -> (String -> msg) -> Html msg
+viewSelection lbl (Input val validator) options inputMsg =
+    let
+        optionsHtml =
+            List.map
+                (\option ->
+                    let
+                        selected =
+                            Html.Styled.Attributes.selected (option.value == val)
+                    in
+                    Html.option [ value option.value, selected ] [ text option.name ]
+                )
+                options
+
+        optionsWithEmpty =
+            if List.any (\option -> val == option.value) options then
+                optionsHtml
+
+            else
+                [ Html.option [] [ text "Bitte wählen..." ] ] ++ optionsHtml
+    in
+    labeled lbl
+        [ Html.select [ value val, onInput inputMsg ] optionsWithEmpty
+        ]
 
 
 viewDateTimeInput :

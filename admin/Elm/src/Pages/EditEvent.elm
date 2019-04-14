@@ -220,6 +220,7 @@ type OccurrenceMsg
     = InputStartDate String
     | InputStartTime String
     | InputDuration String
+    | InputLocationId String
     | InputClickedDelete
 
 
@@ -286,6 +287,12 @@ update msg model =
                                             { oldStart | time = newTime }
                                     in
                                     { occurrence | start = updateInput newStart occurrence.start }
+                                )
+
+                        InputLocationId newId ->
+                            doUpdate
+                                (\occurrence ->
+                                    { occurrence | locationId = setInput newId occurrence.locationId }
                                 )
 
                         InputClickedDelete ->
@@ -446,24 +453,10 @@ viewEditOccurrence locations index occurrence =
             , timeChanged = occMsg << InputStartTime
             }
         , viewInputNumber "Dauer (in Minuten)" occurrence.duration (occMsg << InputDuration)
-        , case extract occurrence.locationId of
-            Just id ->
-                let
-                    location =
-                        IdDict.get id locations
-                in
-                labeled "Ort"
-                    [ a
-                        [ href
-                            (Routes.toRelativeUrl <|
-                                Routes.Location <|
-                                    IdDict.encodeIdForUrl id
-                            )
-                        ]
-                        [ text location.name ]
-                    ]
-
-            Nothing ->
-                text "Invalid."
+        , let
+            options =
+                IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
+          in
+          Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
