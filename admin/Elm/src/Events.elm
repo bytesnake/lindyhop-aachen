@@ -1,6 +1,6 @@
 module Events exposing
     ( Event, Occurrence, Location, Store, Events, Locations
-    , fetchEvents, updateEvent, updateLocation
+    , fetchEvents, updateEvent, createLocation, readLocation,updateLocation, deleteLocation
     , locations, events, mapEvents, mapLocations
     )
 
@@ -14,7 +14,7 @@ module Events exposing
 
 # API
 
-@docs fetchEvents, updateEvent, updateLocation
+@docs fetchEvents, updateEvent, createLocation, readLocation, updateLocation, deleteLocation
 
 
 # Access
@@ -110,41 +110,111 @@ apiUrl path =
     Url.Builder.absolute (base ++ path) []
 
 
+type HttpMethod
+    = Get
+    | Post
+    | Put
+    | Delete
+
+
+stringFromHttpMethod : HttpMethod -> String
+stringFromHttpMethod method =
+    case method of
+        Get ->
+            "GET"
+
+        Post ->
+            "POST"
+
+        Put ->
+            "PUT"
+
+        Delete ->
+            "DELETE"
+
+
+apiRequest :
+    { method : HttpMethod
+    , url : List String
+    , body : Maybe Encode.Value
+    , expect : Http.Expect msg
+    }
+    -> Cmd msg
+apiRequest { method, url, body, expect } =
+    Http.request
+        { method = stringFromHttpMethod method
+        , headers = []
+        , url = apiUrl url
+        , body =
+            case body of
+                Just json ->
+                    Http.jsonBody json
+
+                Nothing ->
+                    Http.emptyBody
+        , expect = expect
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 {-| The HTTP command to fetch the events.
 -}
 fetchEvents : (Result Http.Error Store -> msg) -> Cmd msg
 fetchEvents toMsg =
-    Http.get
-        { url = apiUrl [ "events" ]
+    apiRequest
+        { method = Get
+        , url = [ "events" ]
+        , body = Nothing
         , expect = Http.expectJson toMsg decodeEvents
         }
 
 
 updateEvent : Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
 updateEvent id event toMsg =
-    Http.request
-        { method = "PUT"
-        , headers = []
-        , url = apiUrl [ "events", IdDict.encodeIdForUrl id ]
-        , body = Http.jsonBody (encodeEvent event)
+    apiRequest
+        { method = Put
+        , url = [ "events", IdDict.encodeIdForUrl id ]
+        , body = Just <| encodeEvent event
         , expect = Http.expectWhatever toMsg
-        , timeout = Nothing
-        , tracker = Nothing
         }
 
+
+createLocation : Location -> (Result Http.Error Location-> msg) -> Cmd msg
+createLocation location toMsg =
+    apiRequest
+        { method = Post
+        , url = [ "locations" ]
+        , body = Just <| encodeLocation location
+        , expect = Http.expectJson toMsg decodeLocation
+        }
+
+readLocation : Id Location -> (Result Http.Error Location -> msg) -> Cmd msg
+readLocation id toMsg =
+    apiRequest{
+        method= Get,
+        url = ["locations", IdDict.encodeIdForUrl id]
+        , body = Nothing
+        , expect = Http.expectJson toMsg decodeLocation
+    }
 
 updateLocation : Id Location -> Location -> (Result Http.Error () -> msg) -> Cmd msg
 updateLocation id location toMsg =
-    Http.request
-        { method = "PUT"
-        , headers = []
-        , url = apiUrl [ "locations", IdDict.encodeIdForUrl id ]
-        , body = Http.jsonBody (encodeLocation location)
+    apiRequest
+        { method = Put
+        , url = [ "locations", IdDict.encodeIdForUrl id ]
+        , body = Just <| encodeLocation location
         , expect = Http.expectWhatever toMsg
-        , timeout = Nothing
-        , tracker = Nothing
         }
 
+deleteLocation : Id Location -> (Result Http.Error Location -> msg) -> Cmd msg
+deleteLocation id toMsg =
+    apiRequest {
+        method = Delete,
+        url = ["locations", IdDict.encodeIdForUrl id]
+        , body = Nothing
+        , expect = Http.expectJson toMsg decodeLocation
+    }
 
 
 -- Decode
