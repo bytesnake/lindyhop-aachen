@@ -1,5 +1,5 @@
 [package]
-name = "lindyhop-aachen-rust"
+name = "lindyhop-aachen"
 version = "0.1.0"
 authors = ["Y0hy0h <Y0hy0h@users.noreply.github.com>"]
 edition = "2018"
