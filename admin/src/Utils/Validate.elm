@@ -1,4 +1,4 @@
-module Utils.Validate exposing (map2, Validator, accept, errors, from, ifEmpty, ifNotInt, validate)
+module Utils.Validate exposing (Validator, accept, errors, from, ifEmpty, ifNotInt, map2, validate)
 
 
 type Validator raw a
@@ -41,9 +41,15 @@ map2 mapping first second =
     case ( first, second ) of
         ( Ok v1, Ok v2 ) ->
             Ok (mapping v1 v2)
-        (Err error, Ok _)-> Err error
-        (Ok _, Err error) -> Err error
-        (Err e1, Err e2) -> Err (e1 ++ e2)
+
+        ( Err error, Ok _ ) ->
+            Err error
+
+        ( Ok _, Err error ) ->
+            Err error
+
+        ( Err e1, Err e2 ) ->
+            Err (e1 ++ e2)
 
 
 errors : Validator raw a -> raw -> List String
