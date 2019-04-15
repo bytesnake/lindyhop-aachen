@@ -1,19 +1,24 @@
 module Pages.EditEvent exposing
-    ( LoadModel
+    ( EventInput
+    , InputMsg
+    , LoadModel
     , LoadMsg
     , Model
     , Msg
+    , eventFromInputs
     , fromEvents
     , init
     , update
+    , updateInputs
     , updateLoad
     , view
+    , viewEditEvent
     )
 
 import Css exposing (em, flexStart, row, zero)
 import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
+import Html.Styled as Html exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
@@ -205,15 +210,19 @@ updateLoad msg model =
 
 
 type Msg
+    = Input InputMsg
+    | ClickedSave
+    | SaveFinished (Result Http.Error ())
+    | ClickedDelete
+    | DeleteFinished (Result Http.Error Event)
+
+
+type InputMsg
     = InputName String
     | InputTeaser String
     | InputDescription String
     | InputOccurrence Int OccurrenceMsg
     | AddOccurrence
-    | ClickedSave
-    | SaveFinished (Result Http.Error ())
-    | ClickedDelete
-    | DeleteFinished (Result Http.Error Event)
 
 
 type OccurrenceMsg
@@ -226,95 +235,11 @@ type OccurrenceMsg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        setInput new input =
-            updateInput (\_ -> new) input
-    in
     case msg of
-        InputName newName ->
+        Input inputMsg ->
             let
                 newModel =
-                    updateEvent model
-                        (\event -> { event | name = setInput newName event.name })
-            in
-            ( newModel, Cmd.none )
-
-        InputTeaser newTeaser ->
-            let
-                newModel =
-                    updateEvent model
-                        (\event -> { event | teaser = setInput newTeaser event.teaser })
-            in
-            ( newModel, Cmd.none )
-
-        InputDescription newDescription ->
-            let
-                newModel =
-                    updateEvent model
-                        (\event -> { event | description = setInput newDescription event.description })
-            in
-            ( newModel, Cmd.none )
-
-        InputOccurrence index occurrenceMsg ->
-            let
-                newOccurrences occurrences =
-                    let
-                        doUpdate : (OccurrenceInput -> OccurrenceInput) -> List OccurrenceInput
-                        doUpdate updateMapping =
-                            List.updateAt index
-                                updateMapping
-                                occurrences
-                    in
-                    case occurrenceMsg of
-                        InputDuration newDuration ->
-                            doUpdate (\occurrence -> { occurrence | duration = setInput newDuration occurrence.duration })
-
-                        InputStartDate newDate ->
-                            doUpdate
-                                (\occurrence ->
-                                    let
-                                        newStart oldStart =
-                                            { oldStart | date = newDate }
-                                    in
-                                    { occurrence | start = updateInput newStart occurrence.start }
-                                )
-
-                        InputStartTime newTime ->
-                            doUpdate
-                                (\occurrence ->
-                                    let
-                                        newStart oldStart =
-                                            { oldStart | time = newTime }
-                                    in
-                                    { occurrence | start = updateInput newStart occurrence.start }
-                                )
-
-                        InputLocationId newId ->
-                            doUpdate
-                                (\occurrence ->
-                                    { occurrence | locationId = setInput newId occurrence.locationId }
-                                )
-
-                        InputClickedDelete ->
-                            List.removeAt index occurrences
-
-                newModel =
-                    updateOccurrences model newOccurrences
-            in
-            ( newModel, Cmd.none )
-
-        AddOccurrence ->
-            let
-                newOccurrences occurrences =
-                    occurrences
-                        ++ [ { start = Utils.buildInput { date = "", time = "" } Utils.dateTimeValidator
-                             , duration = Utils.buildInput "" durationValidator
-                             , locationId = Utils.buildInput "" (locationIdValidator model.locations)
-                             }
-                           ]
-
-                newModel =
-                    updateOccurrences model newOccurrences
+                    { model | inputs = updateInputs model.locations inputMsg model.inputs }
             in
             ( newModel, Cmd.none )
 
@@ -338,6 +263,79 @@ update msg model =
 
         DeleteFinished result ->
             ( model, Cmd.none )
+
+
+updateInputs : Locations -> InputMsg -> EventInput -> EventInput
+updateInputs locations msg event =
+    let
+        setInput new input =
+            updateInput (\_ -> new) input
+    in
+    case msg of
+        InputName newName ->
+            { event | name = setInput newName event.name }
+
+        InputTeaser newTeaser ->
+            { event | teaser = setInput newTeaser event.teaser }
+
+        InputDescription newDescription ->
+            { event | description = setInput newDescription event.description }
+
+        InputOccurrence index occurrenceMsg ->
+            let
+                updateOccurrence : (OccurrenceInput -> OccurrenceInput) -> EventInput
+                updateOccurrence updateMapping =
+                    { event
+                        | occurrences =
+                            List.updateAt index
+                                updateMapping
+                                event.occurrences
+                    }
+            in
+            case occurrenceMsg of
+                InputDuration newDuration ->
+                    updateOccurrence (\occurrence -> { occurrence | duration = setInput newDuration occurrence.duration })
+
+                InputStartDate newDate ->
+                    updateOccurrence
+                        (\occurrence ->
+                            let
+                                newStart oldStart =
+                                    { oldStart | date = newDate }
+                            in
+                            { occurrence | start = updateInput newStart occurrence.start }
+                        )
+
+                InputStartTime newTime ->
+                    updateOccurrence
+                        (\occurrence ->
+                            let
+                                newStart oldStart =
+                                    { oldStart | time = newTime }
+                            in
+                            { occurrence | start = updateInput newStart occurrence.start }
+                        )
+
+                InputLocationId newId ->
+                    updateOccurrence
+                        (\occurrence ->
+                            { occurrence | locationId = setInput newId occurrence.locationId }
+                        )
+
+                InputClickedDelete ->
+                    { event | occurrences = List.removeAt index event.occurrences }
+
+        AddOccurrence ->
+            let
+                newOccurrences =
+                    event.occurrences
+                        ++ [ { start = Utils.buildInput { date = "", time = "" } Utils.dateTimeValidator
+                             , duration = Utils.buildInput "" durationValidator
+                             , locationId = Utils.buildInput "" (locationIdValidator locations)
+                             }
+                           ]
+            in
+            { event | occurrences = newOccurrences }
 
 
 updateEvent : Model -> (EventInput -> EventInput) -> Model
@@ -366,35 +364,41 @@ updateOccurrences model occurrencesUpdater =
 
 view : Model -> List (Html Msg)
 view model =
-    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.Event <| IdDict.encodeIdForUrl model.eventId)
-    , fields
-        [ viewInputText "Titel" model.inputs.name InputName
-        , viewInputText "Teaser" model.inputs.teaser InputTeaser
-        , viewTextArea "Beschreibung" model.inputs.description InputDescription
+    [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditEvent <| IdDict.encodeIdForUrl model.eventId) ]
+        ++ (List.map (Html.map Input) <| viewEditEvent model.locations model.inputs)
+        ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
+                [ let
+                    options =
+                        { enabledness =
+                            if changed model then
+                                Utils.Enabled
+
+                            else
+                                Utils.Disabled
+                        }
+                  in
+                  Utils.buttonWithOptions options "Speichern" ClickedSave
+                , Utils.button "Löschen" ClickedDelete
+                ]
+           ]
+
+
+viewEditEvent : Locations -> EventInput -> List (Html InputMsg)
+viewEditEvent locations inputs =
+    [ fields
+        [ viewInputText "Titel" inputs.name InputName
+        , viewInputText "Teaser" inputs.teaser InputTeaser
+        , viewTextArea "Beschreibung" inputs.description InputDescription
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
         (List.indexedMap
             (\index occurrence ->
-                li [] [ viewEditOccurrence model.locations index occurrence ]
+                li [] [ viewEditOccurrence locations index occurrence ]
             )
-            model.inputs.occurrences
+            inputs.occurrences
             ++ [ Utils.button "Neuer Termin" AddOccurrence ]
         )
-    , div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-        [ let
-            options =
-                { enabledness =
-                    if changed model then
-                        Utils.Enabled
-
-                    else
-                        Utils.Disabled
-                }
-          in
-          Utils.buttonWithOptions options "Speichern" ClickedSave
-        , Utils.button "Löschen" ClickedDelete
-        ]
     ]
 
 
@@ -421,10 +425,10 @@ spreadListItemStyle =
         ]
 
 
-viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html Msg
+viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html InputMsg
 viewEditOccurrence locations index occurrence =
     let
-        occMsg : OccurrenceMsg -> Msg
+        occMsg : OccurrenceMsg -> InputMsg
         occMsg subMsg =
             InputOccurrence index subMsg
 
@@ -462,7 +466,7 @@ viewEditOccurrence locations index occurrence =
              ]
                 ++ (case extract occurrence.locationId of
                         Just id ->
-                            [ a [ href <| Routes.toRelativeUrl <| Routes.Location (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
+                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
 
                         Nothing ->
                             []

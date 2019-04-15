@@ -6,8 +6,10 @@ import Url.Parser as Parser exposing ((</>), Parser, map, s, string, top)
 
 type Route
     = Overview
-    | Event String
-    | Location String
+    | CreateEvent
+    | EditEvent String
+    | CreateLocation
+    | EditLocation String
     | NotFound
 
 
@@ -24,10 +26,16 @@ toRelativeUrl route =
                 Overview ->
                     []
 
-                Event id ->
+                CreateEvent ->
+                    [ "event" ]
+
+                EditEvent id ->
                     [ "event", id ]
 
-                Location id ->
+                CreateLocation ->
+                    [ "location" ]
+
+                EditLocation id ->
                     [ "location", id ]
 
                 NotFound ->
@@ -42,14 +50,20 @@ routeName route =
         Overview ->
             "Admin"
 
-        Event id ->
-            "Event"
+        CreateEvent ->
+            "Veranstaltung"
 
-        Location id ->
-            "Location"
+        EditEvent id ->
+            "Veranstaltung"
+
+        CreateLocation ->
+            "Ort"
+
+        EditLocation id ->
+            "Ort"
 
         NotFound ->
-            "Not found"
+            "Nicht gefunden"
 
 
 root : List String
@@ -66,6 +80,8 @@ routeParser =
     in
     Parser.oneOf
         [ map Overview rootUrl
-        , map Event (rootUrl </> s "event" </> string)
-        , map Location (rootUrl </> s "location" </> string)
+        , map CreateEvent (rootUrl </> s "event")
+        , map EditEvent (rootUrl </> s "event" </> string)
+        , map CreateLocation (rootUrl </> s "location")
+        , map EditLocation (rootUrl </> s "location" </> string)
         ]

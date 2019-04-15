@@ -10,6 +10,8 @@ import Html.Styled.Attributes exposing (href, type_, value)
 import Html.Styled.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
+import Pages.CreateEvent
+import Pages.CreateLocation
 import Pages.EditEvent
 import Pages.EditLocation
 import Pages.Overview
@@ -68,12 +70,15 @@ type RouteModel
     | ErrorLoading
     | NotFound
     | Overview Pages.Overview.Model
+    | CreateEvent Pages.CreateEvent.Model
     | EditEvent Pages.EditEvent.Model
+    | CreateLocation Pages.CreateLocation.Model
     | EditLocation Pages.EditLocation.Model
 
 
 type RouteLoadModel
     = OverviewLoad Pages.Overview.LoadModel
+    | CreateEventLoad Pages.CreateEvent.LoadModel
     | EditEventLoad Pages.EditEvent.LoadModel
     | EditLocationLoad Pages.EditLocation.LoadModel
 
@@ -110,8 +115,11 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | OverviewLoadMsg Pages.Overview.LoadMsg
+    | CreateEventLoadMsg Pages.CreateEvent.LoadMsg
+    | CreateEventMsg Pages.CreateEvent.Msg
     | EditEventLoadMsg Pages.EditEvent.LoadMsg
     | EditEventMsg Pages.EditEvent.Msg
+    | CreateLocationMsg Pages.CreateLocation.Msg
     | EditLocationLoadMsg Pages.EditLocation.LoadMsg
     | EditLocationMsg Pages.EditLocation.Msg
 
@@ -150,6 +158,32 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        CreateEventLoadMsg subMsg ->
+            case model of
+                Loading key loaded (CreateEventLoad subModel) ->
+                    case Pages.CreateEvent.updateLoad subMsg subModel of
+                        Ok newSubModel ->
+                            ( Loaded key (CreateEvent newSubModel), Cmd.none )
+
+                        Err error ->
+                            ( Loaded key ErrorLoading, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        CreateEventMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        CreateEvent subModel ->
+                            Pages.CreateEvent.update subMsg subModel
+                                |> Tuple.mapBoth CreateEvent (Cmd.map CreateEventMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
         EditEventLoadMsg subMsg ->
             case model of
                 Loading key loaded (EditEventLoad subModel) ->
@@ -170,6 +204,19 @@ update msg model =
                         EditEvent subModel ->
                             Pages.EditEvent.update subMsg subModel
                                 |> Tuple.mapBoth EditEvent (Cmd.map EditEventMsg)
+
+                        _ ->
+                            ( routeModel, Cmd.none )
+            in
+            updateLoaded udpater model
+
+        CreateLocationMsg subMsg ->
+            let
+                udpater routeModel =
+                    case routeModel of
+                        CreateLocation subModel ->
+                            Pages.CreateLocation.update subMsg subModel
+                                |> Tuple.mapBoth CreateLocation (Cmd.map CreateLocationMsg)
 
                         _ ->
                             ( routeModel, Cmd.none )
@@ -217,11 +264,18 @@ load model route =
             Pages.Overview.init
                 |> wrapLoadModel model OverviewLoad OverviewLoadMsg
 
-        Routes.Event rawId ->
+        Routes.CreateEvent ->
+            Pages.CreateEvent.init key
+                |> wrapLoadModel model CreateEventLoad CreateEventLoadMsg
+
+        Routes.EditEvent rawId ->
             Pages.EditEvent.init rawId
                 |> wrapLoadModel model EditEventLoad EditEventLoadMsg
 
-        Routes.Location rawId ->
+        Routes.CreateLocation ->
+            ( Loaded key <| CreateLocation <| Pages.CreateLocation.init key, Cmd.none )
+
+        Routes.EditLocation rawId ->
             Pages.EditLocation.init rawId
                 |> wrapLoadModel model EditLocationLoad EditLocationLoadMsg
 
@@ -272,9 +326,17 @@ view model =
                 Overview subModel ->
                     Pages.Overview.view subModel
 
+                CreateEvent subModel ->
+                    Pages.CreateEvent.view subModel
+                        |> List.map (Html.map CreateEventMsg)
+
                 EditEvent subModel ->
                     Pages.EditEvent.view subModel
                         |> List.map (Html.map EditEventMsg)
+
+                CreateLocation subModel ->
+                    Pages.CreateLocation.view subModel
+                        |> List.map (Html.map CreateLocationMsg)
 
                 EditLocation subModel ->
                     Pages.EditLocation.view subModel

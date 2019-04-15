@@ -56,22 +56,24 @@ view model =
         (Events.mapEvents
             (\id event ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.Event <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
                         [ viewEvent (Events.locations model.store) event ]
                     ]
             )
             model.store
+            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ] ]
         )
     , h2 [] [ text "Orte" ]
     , ol [ css [ listStyle, spreadListItemStyle ] ]
         (Events.mapLocations
             (\id location ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.Location <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
                         [ viewLocation location ]
                     ]
             )
             model.store
+            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateLocation) ] [ text "Neuer Ort" ] ]
         )
     ]
 
