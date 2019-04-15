@@ -1,7 +1,8 @@
 {
     "private": true,
     "scripts": {
-        "install": "(cd admin/Elm && yarn install)",
-        "test": "(cd admin/Elm && yarn format --validate && yarn test)"
+        "install": "(cd admin && yarn install)",
+        "build": "(cd admin && yarn build)",
+        "test": "(cd admin && yarn format --validate && yarn test)"
     }
 }
