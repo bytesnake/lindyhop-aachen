@@ -30,6 +30,4 @@ FROM rust:slim
 WORKDIR /lindyhop-aachen
 COPY --from=admin /admin/dist ./admin/dist
 COPY --from=lindyhop-aachen /lindyhop-aachen/target/release/lindyhop-aachen .
-ENV ROCKET_PORT=${PORT:-8000}
-EXPOSE ${ROCKET_PORT}
-CMD [ "./lindyhop-aachen" ]
+CMD ROCKET_PORT=${PORT:-8000} ./lindyhop-aachen
