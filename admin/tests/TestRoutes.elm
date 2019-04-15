@@ -19,7 +19,12 @@ suite =
                             |> Routes.toRoute
                             |> Expect.equal route
             )
-            [ Routes.Overview, Routes.Event "1", Routes.Location "1" ]
+            [ Routes.Overview
+            , Routes.CreateEvent
+            , Routes.EditEvent "1"
+            , Routes.CreateLocation
+            , Routes.EditLocation "1"
+            ]
         )
 
 
