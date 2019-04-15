@@ -20,6 +20,7 @@ WORKDIR /lindyhop-aachen
 COPY ./Cargo.toml .
 COPY ./Cargo.lock .
 RUN cargo build --release
+RUN rm ./target/release/deps/lindyhop_aachen*
 RUN rm -r ./src
 # Actual build
 COPY ./src ./src
@@ -29,5 +30,6 @@ FROM rust:slim
 WORKDIR /lindyhop-aachen
 COPY --from=admin /admin/dist ./admin/dist
 COPY --from=lindyhop-aachen /lindyhop-aachen/target/release/lindyhop-aachen .
-EXPOSE 8000
+ENV ROCKET_PORT=${PORT:-8000}
+EXPOSE ${ROCKET_PORT}
 CMD [ "./lindyhop-aachen" ]
