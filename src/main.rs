@@ -9,7 +9,7 @@ use std::sync::RwLock;
 #[macro_use]
 extern crate rocket;
 use chrono::prelude::*;
-use maud::{html, Markup};
+use maud::{html, Markup, DOCTYPE};
 use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
 use rocket::State;
@@ -24,20 +24,26 @@ fn index(store: State<Store>) -> Markup {
     let store = store.read().unwrap();
 
     html! {
-        h1 { "Lindy Hop Aachen" }
-        table {
-            thead {
-                tr {
-                    th { "Datum" }
-                    th { "Ort" }
-                    th { "Uhrzeit" }
-                    th { "Name" }
-                    th { "Beschreibung" }
-                }
-            }
-            tbody {
-                @for entry in store.occurrences_by_date() {
-                    ( render_entry(&entry, &store.locations) )
+        ( DOCTYPE )
+        html {
+            head {}
+            body {
+                h1 { "Lindy Hop Aachen" }
+                table {
+                    thead {
+                        tr {
+                            th { "Datum" }
+                            th { "Name" }
+                            th { "Uhrzeit" }
+                            th { "Ort" }
+                            th { "Beschreibung" }
+                        }
+                    }
+                    tbody {
+                        @for entry in store.occurrences_by_date() {
+                            ( render_entry(&entry, &store.locations) )
+                        }
+                    }
                 }
             }
         }
@@ -65,9 +71,9 @@ fn render_entry(
 fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
     html! {
         @let entry =  html_from_occurrence(occurrence, event, locations);
-        td { ( entry.location ) }
-        td { ( entry.time ) }
         td { ( entry.name ) }
+        td { ( entry.time ) }
+        td { ( entry.location ) }
         td { ( entry.teaser ) }
     }
 }
