@@ -25,35 +25,78 @@ fn index(store: State<Store>) -> Markup {
 
     html! {
         h1 { "Lindy Hop Aachen" }
-        ol {
-            @for event in store.events.values() {
-                li { ( render_event(event, &store.locations) ) }
+        table {
+            thead {
+                tr {
+                    th { "Datum" }
+                    th { "Ort" }
+                    th { "Uhrzeit" }
+                    th { "Name" }
+                    th { "Beschreibung" }
+                }
+            }
+            tbody {
+                @for entry in store.occurrences_by_date() {
+                    ( render_entry(&entry, &store.locations) )
+                }
             }
         }
     }
 }
 
-fn render_event(event: &Event, locations: &Locations) -> Markup {
+fn render_entry(
+    (date, entries): &(NaiveDate, Vec<(&Occurrence, &Event)>),
+    locations: &Locations,
+) -> Markup {
     html! {
-        (event.name) " - " (event.teaser)
-        ol {
-            @for occurrence in &event.occurrences {
-                li { (render_occurrence(&occurrence, locations)) }
+        @let (first, remaining) = entries.split_first().unwrap();  // Since we have a date, there is at least one entry with that date.
+        tr {
+            td rowspan=( entries.len() ) { ( date.format("%d.%m.") ) }
+            ( render_occurrence(first, locations) )
+        }
+        @for occurrence_entry in remaining {
+            tr {
+                ( render_occurrence(occurrence_entry, locations) )
             }
         }
     }
 }
 
-fn render_occurrence(occurrence: &Occurrence, locations: &Locations) -> Markup {
+fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
+    html! {
+        @let entry =  html_from_occurrence(occurrence, event, locations);
+        td { ( entry.location ) }
+        td { ( entry.time ) }
+        td { ( entry.name ) }
+        td { ( entry.teaser ) }
+    }
+}
+
+struct OccurrenceHtml {
+    time: Markup,
+    location: Markup,
+    name: Markup,
+    teaser: Markup,
+}
+
+fn html_from_occurrence(
+    occurrence: &Occurrence,
+    event: &Event,
+    locations: &Locations,
+) -> OccurrenceHtml {
     let maybe_location = locations
         .validate(occurrence.location_id)
         .map(|id| locations.get(&id));
 
-    html! {
-        (occurrence.start.format("%d.%m.%Y %H:%M")) " - " @match maybe_location {
-            Some(location) => (location.name),
-            None => "Steht noch nicht fest."
-        }
+    OccurrenceHtml {
+        time: html! {(occurrence.start.format("%H:%M"))},
+        location: html! { @match maybe_location {
+                Some(location) => (location.name),
+                None => "Steht noch nicht fest."
+                }
+        },
+        name: html! { (event.name) },
+        teaser: html! { (event.teaser) },
     }
 }
 
