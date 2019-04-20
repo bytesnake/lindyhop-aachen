@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,8 @@ pub type Locations = IdMapCru<Location>;
 
 pub type Events = IdMap<Event>;
 
+pub type Occurrences<'a> = Vec<(&'a Occurrence, &'a Event)>;
+
 #[derive(Serialize, Clone, Debug)]
 pub struct Store {
     pub locations: Locations,
@@ -46,6 +48,32 @@ impl Store {
             locations: locations,
             events: events,
         }
+    }
+
+    pub fn occurrences(&self) -> Occurrences {
+        let mut occurrences = self
+            .events
+            .iter()
+            .flat_map(|(_, event)| {
+                event
+                    .occurrences
+                    .iter()
+                    .map(move |occurrence| (occurrence, event))
+            })
+            .collect::<Occurrences>();
+        occurrences.sort_by(|(first, _), (second, _)| first.start.cmp(&second.start));
+        occurrences
+    }
+
+    pub fn occurrences_by_date(&self) -> BTreeMap<NaiveDate, Occurrences> {
+        self.occurrences()
+            .into_iter()
+            .fold(BTreeMap::new(), |mut acc, entry| {
+                acc.entry(entry.0.start.date())
+                    .and_modify(|entries| entries.push(entry))
+                    .or_insert(vec![entry]);
+                acc
+            })
     }
 
     pub fn delete_location(&mut self, id: &Id<Location>) -> Result<Location, Vec<Id<Event>>> {
