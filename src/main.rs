@@ -14,6 +14,7 @@ use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
+use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::uuid::Uuid;
 
 use events::{Event, Events, Location, Locations, Occurrence};
@@ -26,7 +27,9 @@ fn index(store: State<Store>) -> Markup {
     html! {
         ( DOCTYPE )
         html {
-            head {}
+            head {
+                link href="static/main.css" rel="stylesheet";
+            }
             body {
                 h1 { "Lindy Hop Aachen" }
                 table {
@@ -283,6 +286,10 @@ fn main() {
 
     rocket::ignite()
         .manage(RwLock::new(events::Store::from(locations, events)))
+        .mount(
+            "/static",
+            StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
+        )
         .mount(
             "/",
             routes![
