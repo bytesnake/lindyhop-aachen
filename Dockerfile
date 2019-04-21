@@ -4,7 +4,7 @@ WORKDIR /node
 COPY ./package.json ./package.json
 RUN npm install
 COPY ./admin/elm.json ./admin/elm.json
-RUN mkdir ./admin/src && echo "import Html\nmain = Html.text \"Hello World\"" >> ./adminsrc/Main.elm
+RUN mkdir ./admin/src && echo "import Html\nmain = Html.text \"Hello World\"" >> ./admin/src/Main.elm
 RUN npm run compile:admin
 RUN rm -r ./admin/src
 # Actual build
