@@ -1,12 +1,12 @@
 FROM node:lts AS node
 WORKDIR /node
+# Cache compiled dependencies (inspired by http://whitfin.io/speeding-up-rust-docker-builds/)
 COPY ./package.json ./package.json
 RUN npm install
 COPY ./admin/elm.json ./admin/elm.json
-# Cache compiled dependencies (inspired by http://whitfin.io/speeding-up-rust-docker-builds/)
-RUN mkdir src && echo "import Html\nmain = Html.text \"Hello World\"" >> src/Main.elm
+RUN mkdir ./admin/src && echo "import Html\nmain = Html.text \"Hello World\"" >> ./adminsrc/Main.elm
 RUN npm run compile:admin
-RUN rm -r src
+RUN rm -r ./admin/src
 # Actual build
 COPY ./styles ./styles
 COPY ./admin/src ./admin/src
