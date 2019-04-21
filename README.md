@@ -5,14 +5,7 @@
 A website about all things Lindy Hop in Aachen.
 
 ## Development
-To restart the server on changes, use [cargo-watch]:
+To compile all components, and start the server, while watching for changes and restarting, run
 ```bash
-cargo watch -x run
+yarn watch
 ```
-
-To also recompile the Elm admin, there is a ready-made shell script:
-```bash
-./watch-admin.sh
-```
-
-[cargo-watch]: https://crates.io/crates/cargo-watch
