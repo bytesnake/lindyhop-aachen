@@ -1,17 +1,19 @@
-FROM node:lts AS admin
-WORKDIR /admin
-COPY ./admin/package.json .
+FROM node:lts AS node
+WORKDIR /node
+COPY ./package.json .
+COPY ./admin/package.json ./admin
 RUN npm install
-COPY ./admin/elm.json .
+COPY ./admin/elm.json ./admin
 # Cache compiled dependencies (inspired by http://whitfin.io/speeding-up-rust-docker-builds/)
 RUN mkdir src && echo "import Html\nmain = Html.text \"Hello World\"" >> src/Main.elm
 RUN npm run build
 RUN rm -r src
 # Actual build
-COPY ./admin/src ./src
+COPY ./styles ./styles
+COPY ./admin/src ./admin/src
 RUN npm run build
 
-FROM rust:latest AS lindyhop-aachen
+FROM rust:latest AS rust
 RUN rustup toolchain install nightly-2019-03-23 && rustup default nightly-2019-03-23
 # Cache compiled dependencies (see http://whitfin.io/speeding-up-rust-docker-builds/)
 WORKDIR /
@@ -28,6 +30,7 @@ RUN cargo build --release
 
 FROM rust:slim
 WORKDIR /lindyhop-aachen
-COPY --from=admin /admin/dist ./admin/dist
-COPY --from=lindyhop-aachen /lindyhop-aachen/target/release/lindyhop-aachen .
+COPY --from=node /node/static ./static
+COPY --from=node /node/admin/dist ./admin/dist
+COPY --from=rust /lindyhop-aachen/target/release/lindyhop-aachen .
 CMD [ "./lindyhop-aachen" ]

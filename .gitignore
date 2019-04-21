@@ -1,4 +1,6 @@
 node_modules/
 
-/target
+static/
+
+target/
 **/*.rs.bk
