@@ -2,6 +2,7 @@
 
 mod events;
 mod id_map;
+mod crud;
 
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
@@ -19,6 +20,7 @@ use rocket_contrib::uuid::Uuid;
 
 use events::{Event, Events, Location, Locations, Occurrence};
 use id_map::Id;
+use crud::Crud;
 
 #[get("/")]
 fn index(store: State<Store>) -> Markup {
@@ -119,7 +121,7 @@ fn all_events(store: State<Store>) -> Json<events::Store> {
 fn create_event(new_event: Json<Event>, store: State<Store>) -> Json<Id<Event>> {
     let mut store = store.write().unwrap();
 
-    Json(store.events.insert(new_event.into_inner()))
+    Json(store.events.create(new_event.into_inner()))
 }
 
 #[get("/api/events/<uuid>")]
@@ -129,7 +131,7 @@ fn read_event(uuid: Uuid, store: State<Store>) -> Option<Json<Event>> {
     store
         .events
         .validate(uuid.into_inner())
-        .map(|id| Json(store.events.get(&id).clone()))
+        .map(|id| Json(store.events.read(&id).clone()))
 }
 
 #[put("/api/events/<uuid>", data = "<new_event>")]
@@ -145,9 +147,9 @@ fn update_event(
         .validate(uuid.into_inner())
         .ok_or("The uuid does not belong to an event.")
         .map(|id| {
-            store.events.set(id, new_event.into_inner());
+            store.events.update(id, new_event.into_inner());
 
-            Json(store.events.get(&id).clone())
+            Json(store.events.read(&id).clone())
         })
         .map_err(|err| NotFound(err))
 }
@@ -160,7 +162,7 @@ fn delete_event(uuid: Uuid, store: State<Store>) -> Result<Json<Event>, NotFound
         .events
         .validate(uuid.into_inner())
         .ok_or(NotFound("The uuid does not belong to an event."))
-        .map(|id| Json(store.events.remove(&id)))
+        .map(|id| Json(store.events.delete(id)))
 }
 
 #[post("/api/locations", data = "<new_location>")]
@@ -213,7 +215,7 @@ fn delete_location(uuid: Uuid, store: State<Store>) -> Result<Json<Location>, De
         .ok_or(InvalidId(NotFound("No event was found with the id.")))
         .and_then(|id| {
             store
-                .delete_location(&id)
+                .delete_location(id)
                 .map_err(|dependent_events| DependentEvents(Json(dependent_events)))
         })
         .map(|location| Json(location))
@@ -248,7 +250,7 @@ fn main() {
     });
 
     let mut events = Events::new();
-    events.insert(Event {
+    events.create(Event {
         name: "Social Dance".to_string(),
         teaser: "Einfach tanzen.".to_string(),
         description: "Lindy Hop tanzen in einer Bar.".to_string(),
@@ -265,7 +267,7 @@ fn main() {
             },
         ],
     });
-    events.insert(Event {
+    events.create(Event {
         name: "Anfängerkurs".to_string(),
         teaser: "Hereinschnuppern.".to_string(),
         description: "Ein Einführung für diejenigen, die noch nie Lindy Hop getanzt haben."

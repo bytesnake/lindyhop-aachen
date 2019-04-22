@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, HashMap};
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::id_map::{Id, IdMap, UnsafeId};
+use crate::crud::Crud;
+use crate::id_map::{Id, IdMap, UnsafeId};
 
 // Types
 
@@ -36,7 +37,7 @@ pub type Events = IdMap<Event>;
 
 pub type Occurrences<'a> = Vec<(&'a Occurrence, &'a Event)>;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Store {
     pub locations: Locations,
     pub events: Events,
@@ -76,7 +77,7 @@ impl Store {
             })
     }
 
-    pub fn delete_location(&mut self, id: &Id<Location>) -> Result<Location, Vec<Id<Event>>> {
+    pub fn delete_location(&mut self, id: Id<Location>) -> Result<Location, Vec<Id<Event>>> {
         let dependent_events: Vec<Id<Event>> = self
             .events
             .iter()
@@ -87,7 +88,7 @@ impl Store {
                     .any(|occurrence| occurrence.location_id == id.to_unsafe());
 
                 if refers_to_location {
-                    Some(event_id)
+                    Some(event_id.clone())
                 } else {
                     None
                 }
@@ -97,12 +98,12 @@ impl Store {
         if dependent_events.len() > 0 {
             Err(dependent_events)
         } else {
-            Ok(self.locations.0.remove(&id))
+            Ok(self.locations.0.delete(id))
         }
     }
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdMapCru<I>(IdMap<I>);
 
 impl<I> IdMapCru<I> {
@@ -110,11 +111,11 @@ impl<I> IdMapCru<I> {
         IdMapCru(IdMap::new())
     }
     pub fn init(raw: HashMap<UnsafeId, I>) -> IdMap<I> {
-        IdMap::init(raw)
+        IdMap::from(raw)
     }
 
     pub fn insert(&mut self, item: I) -> Id<I> {
-        self.0.insert(item)
+        self.0.create(item)
     }
 
     pub fn values(&self) -> impl Iterator<Item = &I> {
@@ -122,11 +123,11 @@ impl<I> IdMapCru<I> {
     }
 
     pub fn get(&self, id: &Id<I>) -> &I {
-        self.0.get(id)
+        self.0.read(id)
     }
 
     pub fn set(&mut self, id: Id<I>, new_item: I) {
-        self.0.set(id, new_item);
+        self.0.update(id, new_item);
     }
 
     pub fn validate(&self, unsafe_id: UnsafeId) -> Option<(Id<I>)> {
